@@ -37,7 +37,7 @@ class ShadowFactory(context: Context) {
             val paddingTasks = needPendingTasks
             if (paddingTasks != null) {
                 for ((input, continuation) in paddingTasks) {
-                    GlobalScope.launch(Dispatchers.Main) { continuation.resume(scheduleTask(input)) }
+                    GlobalScope.launch { continuation.resume(scheduleTask(input)) }
                 }
                 needPendingTasks = null
             }
@@ -49,39 +49,7 @@ class ShadowFactory(context: Context) {
         fun onResponse(output: String, id: String) {
             GlobalScope.launch(Dispatchers.Main) {
                 val continuation = tasks.remove(id) ?: return@launch
-                withContext(Dispatchers.Default) {
-                    val json = JSONObject(output)
-                    if (json.has("error")) {
-                        continuation.resumeWithException(
-                            UnsupportedOperationException(
-                                json.getString(
-                                    "error"
-                                )
-                            )
-                        )
-                    } else {
-                        val margin = json.getJSONArray("margin")
-                        val imageData = json.getString("imageData")
-                        val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
-                        val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
-                        val chunk = NinePatchChunk.create(bitmap).serializedChunk
-                        val drawable = ShadowDrawable(
-                            Rect(
-                                margin.getInt(0),
-                                margin.getInt(1),
-                                margin.getInt(2),
-                                margin.getInt(3)
-                            ),
-                            bitmap,
-                            chunk,
-                            NinePatchDrawable(
-                                webkit.resources,
-                                NinePatch(bitmap, chunk)
-                            )
-                        )
-                        continuation.resume(drawable)
-                    }
-                }
+                completeTask(output, continuation)
             }
         }
     }
@@ -98,10 +66,51 @@ class ShadowFactory(context: Context) {
         webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
     }
 
+    private suspend fun completeTask(
+        response: String,
+        continuation: Continuation<ShadowDrawable>
+    ) {
+        withContext(Dispatchers.Default) {
+            val json = JSONObject(response)
+            if (json.has("error")) {
+                continuation.resumeWithException(
+                    UnsupportedOperationException(
+                        json.getString(
+                            "error"
+                        )
+                    )
+                )
+            } else {
+                val margin = json.getJSONArray("margin")
+                val imageData = json.getString("imageData")
+                val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
+                val chunk = NinePatchChunk.create(bitmap).serializedChunk
+                val drawable = ShadowDrawable(
+                    Rect(
+                        margin.getInt(0),
+                        margin.getInt(1),
+                        margin.getInt(2),
+                        margin.getInt(3)
+                    ),
+                    bitmap,
+                    chunk,
+                    NinePatchDrawable(
+                        webkit.resources,
+                        NinePatch(bitmap, chunk)
+                    )
+                )
+                continuation.resume(drawable)
+            }
+        }
+    }
+
     private suspend fun scheduleTask(input: JSONObject): ShadowDrawable {
-        val id = UUID.randomUUID().toString()
-        webkit.evaluateJavascript("createNinePatch('$input','$id')")
-        return suspendCoroutine { tasks[id] = it }
+        return withContext(Dispatchers.Main) {
+            val id = UUID.randomUUID().toString()
+            webkit.evaluateJavascript("createNinePatch('$input','$id')")
+            suspendCoroutine { tasks[id] = it }
+        }
     }
 
     /**
