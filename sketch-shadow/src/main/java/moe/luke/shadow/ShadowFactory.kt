@@ -46,8 +46,7 @@ class ShadowFactory(context: Context) {
         @Keep
         @JavascriptInterface
         fun onResponse(output: String, id: String) {
-            val continuation = tasks[id] ?: return
-            tasks.remove(id)
+            val continuation = tasks.remove(id) ?: return
             GlobalScope.launch(Dispatchers.Default) {
                 val json = JSONObject(output)
                 val drawable = if (json.has("error")) {
