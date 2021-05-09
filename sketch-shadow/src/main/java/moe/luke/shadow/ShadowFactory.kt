@@ -63,6 +63,7 @@ class ShadowFactory(context: Context) {
                 val imageData = json.getString("imageData")
                 val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
                 val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
+                val chunk = NinePatchChunk.create(bitmap).serializedChunk
                 ShadowDrawable(
                     Rect(
                         margin.getInt(0),
@@ -71,9 +72,10 @@ class ShadowFactory(context: Context) {
                         margin.getInt(3)
                     ),
                     bitmap,
+                    chunk,
                     NinePatchDrawable(
                         webkit.resources,
-                        NinePatch(bitmap, NinePatchChunk.create(bitmap).serializedChunk)
+                        NinePatch(bitmap, chunk)
                     )
                 )
             }

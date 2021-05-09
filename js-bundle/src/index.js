@@ -73,12 +73,11 @@ async function createNinePatch(input) {
     let blob = await new Promise(resolve => {
         canvas.toBlob(resolve)
     });
-    let buffer = await new Promise(resolve => {
+    let base64 = await new Promise(resolve => {
         let reader = new FileReader();
-        reader.readAsArrayBuffer(blob);
+        reader.readAsDataURL(blob);
         reader.onloadend = () => {
-            resolve(new Buffer(reader.result))
+            resolve(reader.result)
         }
     });
-
 }

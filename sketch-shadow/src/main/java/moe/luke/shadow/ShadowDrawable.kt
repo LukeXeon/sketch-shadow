@@ -1,19 +1,20 @@
 package moe.luke.shadow
 
+import android.content.res.Resources
 import android.graphics.*
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.NinePatchDrawable
+import android.os.Parcel
+import android.os.Parcelable
 import android.view.View
 import android.view.ViewGroup
 
 class ShadowDrawable internal constructor(
-    margin: Rect,
-    val bitmap: Bitmap,
+    private val margin: Rect,
+    private val bitmap: Bitmap,
+    private val chunk: ByteArray,
     private val ninePatchDrawable: NinePatchDrawable,
-) : Drawable(), Drawable.Callback {
-
-    val margin: Rect = margin
-        get() = Rect(field)
+) : Drawable(), Drawable.Callback, Parcelable {
 
     override fun draw(canvas: Canvas) {
         var callback = callback
@@ -76,6 +77,32 @@ class ShadowDrawable internal constructor(
 
     override fun unscheduleDrawable(who: Drawable, what: Runnable) {
         callback?.unscheduleDrawable(who, what)
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeParcelable(margin, flags)
+        parcel.writeParcelable(bitmap, flags)
+        parcel.writeByteArray(chunk)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<ShadowDrawable> {
+        override fun createFromParcel(parcel: Parcel): ShadowDrawable {
+            val margin = parcel.readParcelable<Rect>(Rect::class.java.classLoader)!!
+            val bitmap = parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader)!!
+            val chunk = parcel.createByteArray()!!
+            return ShadowDrawable(
+                margin, bitmap, chunk,
+                NinePatchDrawable(Resources.getSystem(), NinePatch(bitmap, chunk))
+            )
+        }
+
+        override fun newArray(size: Int): Array<ShadowDrawable?> {
+            return arrayOfNulls(size)
+        }
     }
 
 }
