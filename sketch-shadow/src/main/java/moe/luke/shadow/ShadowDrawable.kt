@@ -4,10 +4,12 @@ import android.content.res.Resources
 import android.graphics.*
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.NinePatchDrawable
+import android.os.Build
 import android.os.Parcel
 import android.os.Parcelable
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 
 class ShadowDrawable internal constructor(
     private val margin: Rect,
@@ -24,8 +26,11 @@ class ShadowDrawable internal constructor(
         if (callback is View) {
             val parent = callback.parent
             if (parent is ViewGroup) {
-                if (parent.clipChildren || parent.clipToOutlineCompat || parent.clipToOutlineCompat) {
-                    parent.clipChildren = false
+                if (parent.clipChildrenCompat
+                    || parent.clipToOutlineCompat
+                    || parent.clipToOutlineCompat
+                ) {
+                    parent.clipChildrenCompat = false
                     parent.clipToPaddingCompat = false
                     parent.clipToOutlineCompat = false
                     invalidateSelf()
@@ -51,6 +56,7 @@ class ShadowDrawable internal constructor(
         )
     }
 
+    @RequiresApi(Build.VERSION_CODES.KITKAT)
     override fun getAlpha(): Int {
         return ninePatchDrawable.alpha
     }
@@ -96,7 +102,7 @@ class ShadowDrawable internal constructor(
             val chunk = parcel.createByteArray()!!
             return ShadowDrawable(
                 margin, bitmap, chunk,
-                NinePatchDrawable(Resources.getSystem(), NinePatch(bitmap, chunk))
+                NinePatchDrawable(Resources.getSystem(), bitmap, chunk, null, null)
             )
         }
 

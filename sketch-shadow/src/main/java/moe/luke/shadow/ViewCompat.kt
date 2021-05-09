@@ -5,14 +5,16 @@ package moe.luke.shadow
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.WebView
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 private val FLAG_CLIP_TO_PADDING by lazy {
     ViewGroup::class.java.getDeclaredField("FLAG_CLIP_TO_PADDING")
+        .apply {
+            isAccessible = true
+        }.getInt(null)
+}
+
+private val FLAG_CLIP_CHILDREN by lazy {
+    ViewGroup::class.java.getDeclaredField("FLAG_CLIP_CHILDREN")
         .apply {
             isAccessible = true
         }.getInt(null)
@@ -33,6 +35,19 @@ private val ViewGroup.mGroupFlags: Int
 private fun ViewGroup.hasBooleanFlag(flag: Int): Boolean {
     return mGroupFlags and flag == flag
 }
+
+internal var ViewGroup.clipChildrenCompat: Boolean
+    get() {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            this.clipChildren
+        } else {
+            hasBooleanFlag(FLAG_CLIP_CHILDREN)
+        }
+    }
+    set(value) {
+        this.clipChildren = value
+    }
+
 
 internal var View.clipToOutlineCompat: Boolean
     get() {
@@ -59,14 +74,4 @@ internal var ViewGroup.clipToPaddingCompat: Boolean
     set(value) {
         this.clipToPadding = value
     }
-
-internal suspend fun WebView.evaluateJavascript(script: String): String {
-    return withContext(Dispatchers.Main) {
-        suspendCoroutine { continuation ->
-            evaluateJavascript(script) {
-                continuation.resume(it)
-            }
-        }
-    }
-}
 

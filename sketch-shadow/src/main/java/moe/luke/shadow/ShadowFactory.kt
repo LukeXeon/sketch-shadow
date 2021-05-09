@@ -3,9 +3,9 @@ package moe.luke.shadow
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.BitmapFactory
-import android.graphics.NinePatch
 import android.graphics.Rect
 import android.graphics.drawable.NinePatchDrawable
+import android.os.Build
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -23,7 +23,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-@SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
+@SuppressLint("SetJavaScriptEnabled", "JavascriptInterface", "AddJavascriptInterface")
 class ShadowFactory(context: Context) {
 
     private data class PendingTask(
@@ -97,7 +97,10 @@ class ShadowFactory(context: Context) {
                     chunk,
                     NinePatchDrawable(
                         webkit.resources,
-                        NinePatch(bitmap, chunk)
+                        bitmap,
+                        chunk,
+                        null,
+                        null
                     )
                 )
                 continuation.resume(drawable)
@@ -108,7 +111,12 @@ class ShadowFactory(context: Context) {
     private suspend fun scheduleTask(input: JSONObject): ShadowDrawable {
         return withContext(Dispatchers.Main) {
             val id = UUID.randomUUID().toString()
-            webkit.evaluateJavascript("createNinePatch('$input','$id')")
+            val script = "createNinePatch('$input','$id')"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                webkit.evaluateJavascript(script, null)
+            } else {
+                webkit.loadUrl("javascript:$script")
+            }
             suspendCoroutine { tasks[id] = it }
         }
     }
