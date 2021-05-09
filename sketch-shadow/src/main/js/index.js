@@ -1,6 +1,3 @@
-import {Buffer} from 'buffer'
-import crc32 from 'buffer-crc32'
-
 function roundRect(ctx, x, y, width, height, radius) {
     let cornerRadius = {upperLeft: 0, upperRight: 0, lowerLeft: 0, lowerRight: 0};
     if (typeof radius === "object") {
@@ -26,45 +23,6 @@ function setShadow(ctx, x, y, b, c) {
     ctx.shadowOffsetY = y;
     ctx.shadowBlur = b;
     ctx.shadowColor = c;
-}
-
-class NinePatchChunk {
-    wasDeserialized = 0;
-    numXDivs = 0;
-    numYDivs = 0;
-    numColors = 0;
-    xDivs = [];
-    yDivs = [];
-    paddingLeft = 0;
-    paddingRight = 0;
-    paddingTop = 0;
-    paddingBottom = 0;
-    colors = [];
-
-    serialize() {
-        let buffer = new Buffer(
-            4 + this.numXDivs + this.numYDivs + 4 + 4 * this.numColors
-        );
-        let offset = 0;
-        for (let value of [this.wasDeserialized, this.numXDivs, this.numYDivs, this.numColors]) {
-            buffer.writeUIntBE(value, offset++, 1);
-        }
-        for (let i = 0; i < this.numXDivs; i++) {
-            buffer.writeUIntBE(this.xDivs[i], offset++, 1);
-        }
-        for (let i = 0; i < this.numYDivs; i++) {
-            buffer.writeUIntBE(this.yDivs[i], offset++, 1);
-        }
-        for (let padding of [this.paddingLeft, this.paddingRight, this.paddingTop, this.paddingBottom]) {
-            buffer.writeInt32BE(padding, offset);
-            offset += 4;
-        }
-        for (let i = 0; i < this.numColors; i++) {
-            buffer.writeInt32BE(this.colors[i], offset);
-            offset += 4;
-        }
-        return buffer;
-    }
 }
 
 async function createNinePatch(input) {
