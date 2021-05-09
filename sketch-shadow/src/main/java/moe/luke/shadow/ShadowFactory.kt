@@ -36,7 +36,7 @@ class ShadowFactory(context: Context) {
         override fun onPageFinished(view: WebView?, url: String?) {
             val paddingTasks = needPendingTasks ?: return
             for ((input, continuation) in paddingTasks) {
-                GlobalScope.launch { continuation.resume(scheduleTask(input)) }
+                GlobalScope.launch(Dispatchers.Main) { continuation.resume(scheduleTask(input)) }
             }
             needPendingTasks = null
         }
@@ -45,10 +45,7 @@ class ShadowFactory(context: Context) {
         @WorkerThread
         @JavascriptInterface
         fun onResponse(output: String, id: String) {
-            GlobalScope.launch(Dispatchers.Main) {
-                val continuation = tasks.remove(id) ?: return@launch
-                completeTask(output, continuation)
-            }
+            GlobalScope.launch(Dispatchers.Main) { completeTask(output, tasks.remove(id) ?: return@launch) }
         }
     }
 
