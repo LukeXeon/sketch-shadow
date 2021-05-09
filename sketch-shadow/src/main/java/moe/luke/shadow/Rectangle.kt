@@ -1,6 +1,6 @@
 package moe.luke.shadow
 
-internal class Rectangle @JvmOverloads constructor(
+internal class Rectangle(
     @JvmField
     val x: Int = 0,
     @JvmField
