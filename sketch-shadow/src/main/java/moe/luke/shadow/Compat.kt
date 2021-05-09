@@ -5,9 +5,14 @@ package moe.luke.shadow
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 private val FLAG_CLIP_TO_PADDING by lazy {
     ViewGroup::class.java.getDeclaredField("FLAG_CLIP_TO_PADDING")
@@ -95,6 +100,16 @@ internal fun loadNinePatchChunk(input: ByteArray): ByteArray? {
         }
         return ByteArray(length).apply {
             reader.get(this)
+        }
+    }
+}
+
+internal suspend fun WebView.evaluateJavascript(script: String): String {
+    return withContext(Dispatchers.Main) {
+        suspendCoroutine { continuation ->
+            evaluateJavascript(script) {
+                continuation.resume(it)
+            }
         }
     }
 }

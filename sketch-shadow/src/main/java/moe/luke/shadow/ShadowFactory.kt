@@ -52,16 +52,6 @@ class ShadowFactory(context: Context) {
         webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
     }
 
-    private suspend fun WebView.evaluateJavascript(script: String): String {
-        return withContext(Dispatchers.Main) {
-            suspendCoroutine { continuation ->
-                evaluateJavascript(script) {
-                    continuation.resume(it)
-                }
-            }
-        }
-    }
-
     private suspend fun createFromWebView(input: String): ShadowDrawable {
         val result = webkit.evaluateJavascript("createNinePatch('$input')")
         return withContext(Dispatchers.Default) {
