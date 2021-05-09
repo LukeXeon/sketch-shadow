@@ -60,7 +60,7 @@ class ShadowFactory(context: Context) {
         val handler = EventHandler()
         webkit.settings.javaScriptEnabled = true
         webkit.webViewClient = handler
-        webkit.addJavascriptInterface(handler, "_handler_")
+        webkit.addJavascriptInterface(handler, "__handler__")
         webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
     }
 
