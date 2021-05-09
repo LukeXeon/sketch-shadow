@@ -66,6 +66,7 @@ class ShadowFactory(context: Context) {
         continuation: Continuation<ShadowDrawable>
     ) {
         withContext(Dispatchers.Default) {
+            ensureActive()
             val json = JSONObject(response)
             if (json.has("error")) {
                 continuation.resumeWithException(
@@ -105,6 +106,7 @@ class ShadowFactory(context: Context) {
 
     private suspend fun scheduleTask(input: JSONObject): ShadowDrawable {
         return withContext(Dispatchers.Main) {
+            ensureActive()
             val id = UUID.randomUUID().toString()
             val script = "createNinePatch('$input','$id')"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -116,9 +118,6 @@ class ShadowFactory(context: Context) {
         }
     }
 
-    /**
-     * @throws UnsupportedOperationException
-     * */
     suspend fun newDrawable(
         options: ShadowOptions
     ): ShadowDrawable {
