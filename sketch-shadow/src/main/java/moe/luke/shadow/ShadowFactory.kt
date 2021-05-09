@@ -11,6 +11,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.Keep
+import androidx.annotation.WorkerThread
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.lang.reflect.Modifier
@@ -19,6 +20,7 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
@@ -35,42 +37,51 @@ class ShadowFactory(context: Context) {
             val paddingTasks = needPendingTasks
             if (paddingTasks != null) {
                 for ((input, continuation) in paddingTasks) {
-                    GlobalScope.launch { continuation.resume(scheduleTask(input)) }
+                    GlobalScope.launch(Dispatchers.Main) { continuation.resume(scheduleTask(input)) }
                 }
                 needPendingTasks = null
             }
         }
 
         @Keep
+        @WorkerThread
         @JavascriptInterface
         fun onResponse(output: String, id: String) {
-            val continuation = tasks.remove(id) ?: return
-            GlobalScope.launch(Dispatchers.Default) {
-                val json = JSONObject(output)
-                val drawable = if (json.has("error")) {
-                    throw UnsupportedOperationException(json.getString("error"))
-                } else {
-                    val margin = json.getJSONArray("margin")
-                    val imageData = json.getString("imageData")
-                    val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
-                    val chunk = NinePatchChunk.create(bitmap).serializedChunk
-                    ShadowDrawable(
-                        Rect(
-                            margin.getInt(0),
-                            margin.getInt(1),
-                            margin.getInt(2),
-                            margin.getInt(3)
-                        ),
-                        bitmap,
-                        chunk,
-                        NinePatchDrawable(
-                            webkit.resources,
-                            NinePatch(bitmap, chunk)
+            GlobalScope.launch(Dispatchers.Main) {
+                val continuation = tasks.remove(id) ?: return@launch
+                withContext(Dispatchers.Default) {
+                    val json = JSONObject(output)
+                    if (json.has("error")) {
+                        continuation.resumeWithException(
+                            UnsupportedOperationException(
+                                json.getString(
+                                    "error"
+                                )
+                            )
                         )
-                    )
+                    } else {
+                        val margin = json.getJSONArray("margin")
+                        val imageData = json.getString("imageData")
+                        val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
+                        val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
+                        val chunk = NinePatchChunk.create(bitmap).serializedChunk
+                        val drawable = ShadowDrawable(
+                            Rect(
+                                margin.getInt(0),
+                                margin.getInt(1),
+                                margin.getInt(2),
+                                margin.getInt(3)
+                            ),
+                            bitmap,
+                            chunk,
+                            NinePatchDrawable(
+                                webkit.resources,
+                                NinePatch(bitmap, chunk)
+                            )
+                        )
+                        continuation.resume(drawable)
+                    }
                 }
-                continuation.resume(drawable)
             }
         }
     }
