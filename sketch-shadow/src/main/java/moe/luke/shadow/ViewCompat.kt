@@ -1,4 +1,4 @@
-@file:JvmName("Compat")
+@file:JvmName("ViewCompat")
 
 package moe.luke.shadow
 
@@ -8,9 +8,6 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -63,47 +60,6 @@ internal var ViewGroup.clipToPaddingCompat: Boolean
         this.clipToPadding = value
     }
 
-/**
- * PNG Chunk struct
- * [The Metadata in PNG files](http://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_PNG_files)
- *
- * +--------+---------+
- * | Length | 4 bytes |
- * +--------+---------+
- * | Chunk  | 4 bytes |
- * |  type  |         |
- * +--------+---------+
- * | Chunk  | Length  |
- * |  data  |  bytes  |
- * +--------+---------+
- * | CRC    | 4 bytes |
- * +--------+---------+
- *
- * @param input
- * @return chunk
- * @throws IOException
- */
-internal fun loadNinePatchChunk(input: ByteArray): ByteArray? {
-    val reader = ByteBuffer.wrap(input).order(ByteOrder.BIG_ENDIAN)
-    // check PNG signature
-    // A PNG always starts with an 8-byte signature: 137 80 78 71 13 10 26 10 (decimal values).
-    if (reader.int != -0x76afb1b9 || reader.int != 0x0D0A1A0A) {
-        return null
-    }
-    while (true) {
-        val length = reader.int
-        val type = reader.int
-        // check for nine patch chunk type (npTc)
-        if (type != 0x6E705463) {
-            reader.position(reader.position() + length + 4 /*crc*/)
-            continue
-        }
-        return ByteArray(length).apply {
-            reader.get(this)
-        }
-    }
-}
-
 internal suspend fun WebView.evaluateJavascript(script: String): String {
     return withContext(Dispatchers.Main) {
         suspendCoroutine { continuation ->
@@ -113,3 +69,4 @@ internal suspend fun WebView.evaluateJavascript(script: String): String {
         }
     }
 }
+

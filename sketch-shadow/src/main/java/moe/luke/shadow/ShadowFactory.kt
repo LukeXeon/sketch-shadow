@@ -57,13 +57,11 @@ class ShadowFactory(context: Context) {
         return withContext(Dispatchers.Default) {
             val json = JSONObject(result)
             if (json.has("error")) {
-                val error = json.getString("error")
-                throw UnsupportedOperationException(error)
+                throw UnsupportedOperationException(json.getString("error"))
             } else {
                 val margin = json.getJSONArray("margin")
                 val imageData = json.getString("imageData")
                 val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
-                val chunk = loadNinePatchChunk(imageBuffer)
                 val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
                 ShadowDrawable(
                     Rect(
@@ -75,7 +73,7 @@ class ShadowFactory(context: Context) {
                     bitmap,
                     NinePatchDrawable(
                         webkit.resources,
-                        NinePatch(bitmap, chunk)
+                        NinePatch(bitmap, NinePatchChunk.create(bitmap).serializedChunk)
                     )
                 )
             }
@@ -90,12 +88,10 @@ class ShadowFactory(context: Context) {
     ): ShadowDrawable {
         val json = JSONObject(
             ShadowOptions::class.java.declaredFields
-                .map {
-                    it
-                }.filter {
+                .filter {
                     !Modifier.isStatic(it.modifiers)
                 }
-                .map { it.name to it.get(options) }
+                .map { it.name to it.apply { isAccessible = true }.get(options) }
                 .toMap()
         ).toString()
         return withContext(Dispatchers.Main) {

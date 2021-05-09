@@ -8,11 +8,10 @@ import android.view.ViewGroup
 
 class ShadowDrawable internal constructor(
     margin: Rect,
-    @Suppress("unused") val bitmap: Bitmap,
+    val bitmap: Bitmap,
     private val ninePatchDrawable: NinePatchDrawable,
 ) : Drawable(), Drawable.Callback {
 
-    @Suppress("MemberVisibilityCanBePrivate")
     val margin: Rect = margin
         get() = Rect(field)
 
