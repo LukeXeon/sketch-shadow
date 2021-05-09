@@ -34,13 +34,11 @@ class ShadowFactory(context: Context) {
     private inner class EventHandler : WebViewClient() {
 
         override fun onPageFinished(view: WebView?, url: String?) {
-            val paddingTasks = needPendingTasks
-            if (paddingTasks != null) {
-                for ((input, continuation) in paddingTasks) {
-                    GlobalScope.launch { continuation.resume(scheduleTask(input)) }
-                }
-                needPendingTasks = null
+            val paddingTasks = needPendingTasks ?: return
+            for ((input, continuation) in paddingTasks) {
+                GlobalScope.launch { continuation.resume(scheduleTask(input)) }
             }
+            needPendingTasks = null
         }
 
         @Keep
