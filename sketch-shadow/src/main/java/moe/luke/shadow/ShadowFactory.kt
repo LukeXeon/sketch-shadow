@@ -35,7 +35,7 @@ class ShadowFactory(context: Context) {
             val paddingTasks = needPendingTasks
             if (paddingTasks != null) {
                 for ((input, continuation) in paddingTasks) {
-                    GlobalScope.launch(Dispatchers.Main) {
+                    GlobalScope.launch {
                         continuation.resume(scheduleTask(input))
                     }
                 }
