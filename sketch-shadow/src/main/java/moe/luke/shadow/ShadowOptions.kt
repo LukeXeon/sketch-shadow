@@ -24,8 +24,6 @@ data class ShadowOptions(
     @Px
     var shadowDy: Int = 0,
     @ColorInt
-    var backgroundFillColor: Int = Color.TRANSPARENT,
-    @ColorInt
     var fillColor: Int = Color.TRANSPARENT,
     @ColorInt
     var outlineColor: Int = Color.TRANSPARENT,
