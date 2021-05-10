@@ -6,11 +6,10 @@ function toColorText(number) {
     return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-const CANVAS_MIN_WIDTH = 10;
-const CANVAS_MIN_HEIGHT = 10;
 const CANVAS_MAX_WIDTH = 500;
 const CANVAS_MAX_HEIGHT = 500;
 const OFFSET_FOR_TRANSPARENT = -9999;
+let NINE_PATCH_SIZING_WIDTH = 4;
 
 const BoxResizeType = {
     None: 0,
@@ -50,7 +49,7 @@ class DrawingTask {
             roundRightBottom
         } = json;
         this.canvas = document.createElement('canvas');
-        this.ctx = canvas.getContext("2d");
+        this.ctx = this.canvas.getContext("2d");
         this.input = json;
         this.id = id;
         this.objectWidth = 1 + Math.max(roundLeftTop + roundRightTop, roundLeftBottom + roundRightBottom);
@@ -58,7 +57,7 @@ class DrawingTask {
     }
 
     draw() {
-
+        this.drawShadow()
     }
 
     getRelativeX() {
@@ -71,9 +70,7 @@ class DrawingTask {
 
     execute() {
         this.draw();
-        this.sendResponse().then(() => {
-            console.log("complete: task id=" + this.id);
-        });
+        this.sendResponse().then(() => console.log("complete: task id=" + this.id));
     }
 
     drawShadow() {
@@ -91,7 +88,7 @@ class DrawingTask {
         this.drawNinePatchLines();
     }
 
-    drawNinePatchLines(paddingValues) {
+    drawNinePatchLines() {
         const {
             outlineWidth
         } = this.input;
@@ -106,7 +103,7 @@ class DrawingTask {
 
         //Subtract outline width from content padding
         if (!this.isTransparentFill) {
-            let outlineHalf = Math.round(outlineWidth / 2);
+            const outlineHalf = Math.round(outlineWidth / 2);
             w -= outlineWidth;
             h -= outlineWidth;
             offsetX += outlineHalf;
@@ -130,21 +127,21 @@ class DrawingTask {
 
         //Draw left
         s = h / 2;
-        this.ctx.moveTo(0, Math.round(offsetY + s - NINEPATCH_SIZING_WIDTH / 2));
-        this.ctx.lineTo(0, Math.round(offsetY + s + NINEPATCH_SIZING_WIDTH));
+        this.ctx.moveTo(0, Math.round(offsetY + s - NINE_PATCH_SIZING_WIDTH / 2));
+        this.ctx.lineTo(0, Math.round(offsetY + s + NINE_PATCH_SIZING_WIDTH));
 
         //Draw top
         s = w / 2;
-        this.ctx.moveTo(Math.round(offsetX + s - NINEPATCH_SIZING_WIDTH / 2), 0);
-        this.ctx.lineTo(Math.round(offsetX + s + NINEPATCH_SIZING_WIDTH), 0);
+        this.ctx.moveTo(Math.round(offsetX + s - NINE_PATCH_SIZING_WIDTH / 2), 0);
+        this.ctx.lineTo(Math.round(offsetX + s + NINE_PATCH_SIZING_WIDTH), 0);
 
         //Draw right
-        this.ctx.moveTo(Math.round(width), Math.round(offsetY + (h * paddingValues.verticalTop)));
-        this.ctx.lineTo(Math.round(width), Math.round(offsetY + h - (h * paddingValues.verticalBottom - ninePatchLineWidth)));
+        this.ctx.moveTo(Math.round(width), Math.round(offsetY + (h)));
+        this.ctx.lineTo(Math.round(width), Math.round(offsetY + h - (h - ninePatchLineWidth)));
 
         //Draw bottom
-        this.ctx.moveTo(Math.round(offsetX + (w * paddingValues.horizontalLeft)), Math.round(height));
-        this.ctx.lineTo(Math.round(offsetX + w - (w * paddingValues.horizontalRight)), Math.round(height));
+        this.ctx.moveTo(Math.round(offsetX + (w)), Math.round(height));
+        this.ctx.lineTo(Math.round(offsetX + w - (w)), Math.round(height));
 
         this.ctx.closePath();
         this.ctx.stroke();
@@ -337,33 +334,6 @@ class DrawingTask {
         this.ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    async sendResponse() {
-        const blob = await new Promise(resolve => {
-            // noinspection JSUnresolvedVariable
-            if (this.canvas.toBlobHD) {
-                this.canvas.toBlobHD(resolve)
-            } else {
-                this.canvas.toBlob(resolve)
-            }
-        });
-        const base64 = await new Promise(resolve => {
-            let reader = new FileReader();
-            reader.onloadend = () => {
-                resolve(reader.result)
-            };
-            // noinspection JSCheckFunctionSignatures
-            reader.readAsDataURL(blob);
-        });
-        // noinspection JSUnresolvedVariable
-        if (typeof __taskManager__ !== "undefined") {
-            // noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            __taskManager__.onTaskComplete(JSON.stringify({
-                margin: [],
-                imageData: base64
-            }, id));
-        }
-    }
-
     roundRect(x, y) {
         const {
             roundLeftTop,
@@ -371,20 +341,61 @@ class DrawingTask {
             roundLeftBottom,
             roundRightBottom
         } = this.input;
+        const w = this.objectWidth;
+        const h = this.objectHeight;
         this.ctx.beginPath();
         this.ctx.moveTo(x + roundLeftTop, y);
-        this.ctx.lineTo(x + this.objectWidth - roundRightTop, y);
-        this.ctx.quadraticCurveTo(x + this.objectWidth, y, x + this.objectWidth, y + roundRightTop);
-        this.ctx.lineTo(x + this.objectWidth, y + this.objectHeight - roundRightBottom);
-        this.ctx.quadraticCurveTo(x + this.objectWidth, y + this.objectHeight, x + this.objectWidth - roundRightBottom, y + this.objectHeight);
-        this.ctx.lineTo(x + roundLeftBottom, y + this.objectHeight);
-        this.ctx.quadraticCurveTo(x, y + this.objectHeight, x, y + this.objectHeight - roundLeftBottom);
+        this.ctx.lineTo(x + w - roundRightTop, y);
+        this.ctx.quadraticCurveTo(x + w, y, x + w, y + roundRightTop);
+        this.ctx.lineTo(x + w, y + h - roundRightBottom);
+        this.ctx.quadraticCurveTo(x + w, y + h, x + w - roundRightBottom, y + h);
+        this.ctx.lineTo(x + roundLeftBottom, y + h);
+        this.ctx.quadraticCurveTo(x, y + h, x, y + h - roundLeftBottom);
         this.ctx.lineTo(x, y + roundLeftTop);
         this.ctx.quadraticCurveTo(x, y, x + roundLeftTop, y);
         this.ctx.closePath();
     }
+
+    async sendResponse() {
+        let output;
+        try {
+            const blob = await new Promise(resolve => {
+                // noinspection JSUnresolvedVariable
+                if (this.canvas.toBlobHD) {
+                    this.canvas.toBlobHD(resolve)
+                } else {
+                    this.canvas.toBlob(resolve)
+                }
+            });
+            const base64 = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    resolve(reader.result)
+                };
+                // noinspection JSCheckFunctionSignatures
+                reader.readAsDataURL(blob);
+            });
+            output = {
+                margin: [],
+                imageData: base64
+            };
+        } catch (e) {
+            output = {
+                error: e.message
+            };
+        }
+        // noinspection JSUnresolvedVariable
+        if (typeof __taskManager__ !== "undefined") {
+            // noinspection JSUnresolvedFunction,JSUnresolvedVariable
+            __taskManager__.onTaskComplete(JSON.stringify(output, id));
+        } else {
+            console.log("output", output)
+        }
+    }
+
 }
 
-async function createNinePatch(input, id) {
+// noinspection JSUnusedGlobalSymbols
+export default async function createNinePatch(input, id) {
     new DrawingTask(input, id).execute();
 }
