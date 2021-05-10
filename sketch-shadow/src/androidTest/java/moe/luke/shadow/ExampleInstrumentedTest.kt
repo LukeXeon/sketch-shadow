@@ -22,8 +22,9 @@ class ExampleInstrumentedTest {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("moe.luke.shadow.test", appContext.packageName)
-        val factory = ShadowFactory(appContext)
+
         GlobalScope.launch {
+            val factory = ShadowFactory.create(appContext)
             factory.newDrawable(ShadowOptions())
         }
     }

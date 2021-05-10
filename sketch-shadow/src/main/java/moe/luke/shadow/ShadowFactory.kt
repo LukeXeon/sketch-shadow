@@ -25,7 +25,9 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface", "AddJavascriptInterface")
-class ShadowFactory(context: Context) {
+class ShadowFactory
+@MainThread
+private constructor(context: Context) {
 
     private inner class TaskManager : WebViewClient() {
         private val pendingTasks = ArrayList<Pair<JSONObject, Continuation<ShadowDrawable>>>()
@@ -125,6 +127,14 @@ class ShadowFactory(context: Context) {
         webkit.webViewClient = taskManager
         webkit.addJavascriptInterface(taskManager, "__taskManager__")
         webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
+    }
+
+    companion object {
+        suspend fun create(context: Context): ShadowFactory {
+            return withContext(Dispatchers.Main) {
+                ShadowFactory(context)
+            }
+        }
     }
 
     suspend fun newDrawable(
