@@ -35,6 +35,7 @@ class ShadowFactory(context: Context) {
 
         private suspend fun runTask(input: JSONObject): ShadowDrawable {
             return withContext(Dispatchers.Main) {
+                ensureActive()
                 val id = UUID.randomUUID().toString()
                 val script = "createNinePatch('$input','$id')"
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
