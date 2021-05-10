@@ -1,23 +1,26 @@
-class DrawingTask {
-    static CANVAS_MIN_WIDTH = 10;
-    static CANVAS_MIN_HEIGHT = 10;
-    static CANVAS_MAX_WIDTH = 500;
-    static CANVAS_MAX_HEIGHT = 500;
-    static OFFSET_FOR_TRANSPARENT = -9999;
-    static toColorText(number) {
-        const alpha = number >> 24 & 0xff;
-        const red = number >> 16 & 0xff;
-        const green = number >> 8 & 0xff;
-        const blue = number & 0xff;
-        return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-    }
+function toColorText(number) {
+    const alpha = number >> 24 & 0xff;
+    const red = number >> 16 & 0xff;
+    const green = number >> 8 & 0xff;
+    const blue = number & 0xff;
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
 
-    static BOX_RESIZE_TYPE = {
-        None:0,
-        Right:1,
-        Bottom:2,
-        Corner:3
-    };
+const CANVAS_MIN_WIDTH = 10;
+const CANVAS_MIN_HEIGHT = 10;
+const CANVAS_MAX_WIDTH = 500;
+const CANVAS_MAX_HEIGHT = 500;
+const OFFSET_FOR_TRANSPARENT = -9999;
+
+const BoxResizeType = {
+    None: 0,
+    Right: 1,
+    Bottom: 2,
+    Corner: 3
+};
+
+class DrawingTask {
+
     isTransparentFill = true;
     boundPos = {
         leftPos: -1,
@@ -28,7 +31,7 @@ class DrawingTask {
         canvasHeight: -1,
         clipLeft: -1
     };
-    boxResizeMode = DrawingTask.BOX_RESIZE_TYPE.None;
+    boxResizeMode = BoxResizeType.None;
 
     constructor(input, id) {
         const json = JSON.parse(input);
@@ -55,12 +58,17 @@ class DrawingTask {
         this.objectHeight = 1 + Math.max(roundLeftTop + roundLeftBottom, roundRightTop + roundRightBottom);
     }
 
+
+    draw() {
+
+    }
+
     getRelativeX() {
-        return Math.round((DrawingTask.CANVAS_MAX_WIDTH / 2) - (this.objectWidth / 2) - this.boundPos.leftPos);
+        return Math.round((CANVAS_MAX_WIDTH / 2) - (this.objectWidth / 2) - this.boundPos.leftPos);
     }
 
     getRelativeY() {
-        return Math.round((DrawingTask.CANVAS_MAX_HEIGHT / 2) - (this.objectHeight / 2) - this.boundPos.topPos);
+        return Math.round((CANVAS_MAX_HEIGHT / 2) - (this.objectHeight / 2) - this.boundPos.topPos);
     }
 
     execute() {
@@ -74,6 +82,95 @@ class DrawingTask {
         const w = this.objectWidth;
         const h = this.objectHeight;
 
+    }
+
+    updateBounds() {
+        const {
+            paddingLeft,
+            paddingRight,
+            paddingTop,
+            paddingBottom
+        } = this.input;
+        const w = this.objectWidth;
+        const h = this.objectHeight;
+        this.boundPos.leftPos = this.boundPos.topPos = Number.MAX_VALUE;
+        this.boundPos.rightPos = this.boundPos.bottomPos = -1;
+
+        let imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        let imageWidth = imgData.width;
+        let imageHeight = imgData.height;
+        let imageData = imgData.data;
+
+        //Iterate through all pixels in image
+        //used to get image bounds (where shadow ends)
+        for (let i = 0; i < imageData.length; i += 4) {
+            if (imageData[i + 3] !== 0) { //check for non alpha pixel
+                let x = (i / 4) % imageWidth;
+                let y = Math.floor((i / 4) / imageWidth);
+
+                if (x < this.boundPos.leftPos) {
+                    this.boundPos.leftPos = x;
+                } else if (x > this.boundPos.rightPos) {
+                    this.boundPos.rightPos = x;
+                }
+
+                if (y < this.boundPos.topPos) {
+                    this.boundPos.topPos = y;
+                } else if (y > this.boundPos.bottomPos) {
+                    this.boundPos.bottomPos = y;
+                }
+            }
+        }
+
+        let actualWidth = this.boundPos.rightPos - this.boundPos.leftPos;
+        let actualHeight = this.boundPos.bottomPos - this.boundPos.topPos;
+        let actualPaddingTop = imageHeight / 2 - h / 2 - this.boundPos.topPos;
+        let actualPaddingBottom = this.boundPos.bottomPos - (imageHeight / 2 + h / 2);
+        let actualPaddingLeft = imageWidth / 2 - w / 2 - this.boundPos.leftPos;
+        let actualPaddingRight = this.boundPos.rightPos - (imageWidth / 2 + w / 2);
+
+        let msg = ['actual size: [', actualWidth, actualHeight, ']',
+            ' shadow [', actualPaddingTop, actualPaddingRight, actualPaddingBottom, actualPaddingLeft, ']'].join(' ');
+        //show the actual size
+        console.log(msg);
+        //change to desire bounds
+        if (paddingLeft !== 0) {
+            this.boundPos.leftPos = (imageWidth - w) / 2 - paddingLeft;
+        }
+        if (paddingRight !== 0) {
+            this.boundPos.rightPos = imageWidth / 2 + w / 2 + paddingRight;
+        }
+        if (paddingTop !== 0) {
+            this.boundPos.topPos = (imageHeight - h) / 2 - paddingTop;
+        }
+        if (paddingBottom !== 0) {
+            this.boundPos.bottomPos = imageHeight / 2 + h / 2 + paddingBottom;
+        }
+
+        this.boundPos.leftPos = this.boundPos.leftPos - 1;
+        this.boundPos.topPos = this.boundPos.topPos - 1;
+        this.boundPos.rightPos = imageWidth - this.boundPos.rightPos - 2;
+        this.boundPos.bottomPos = imageHeight - this.boundPos.bottomPos - 2;
+
+        //Calculate final canvas width and height
+        this.boundPos.canvasWidth = Math.round(this.canvas.width - (this.boundPos.leftPos + this.boundPos.rightPos));
+        this.boundPos.canvasHeight = Math.round(this.canvas.height - (this.boundPos.topPos + this.boundPos.bottomPos));
+
+        //Add clipping If set
+        let clipLeft = getRelativeX() + roundRadius.lowerLeft;
+        let clipTop = getRelativeY() + roundRadius.upperLeft;
+        let clipRight = boundPos.canvasWidth - objectWidth - getRelativeX() + roundRadius.lowerRight;
+        let clipBottom = boundPos.canvasHeight - objectHeight - getRelativeY() + roundRadius.upperRight;
+
+        this.boundPos.leftPos += clipLeft;
+        this.boundPos.topPos += clipTop;
+        this.boundPos.rightPos += clipRight;
+        this.boundPos.bottomPos += clipBottom;
+
+        this.boundPos.clipLeft = clipLeft;
+
+        this.boundPos.canvasWidth -= clipLeft + clipRight;
+        this.boundPos.canvasHeight -= clipBottom + clipTop;
     }
 
     drawShadowInternal(center, translate) {
@@ -90,10 +187,10 @@ class DrawingTask {
         const h = this.objectHeight;
         const centerPosX = Math.round((canvas.width / 2) - (w / 2));
         const centerPosY = Math.round((canvas.height / 2) - (h / 2));
-        let x = 0, y = 0;
+        let x, y;
         this.ctx.save();
         if (this.isTransparentFill) {
-            this.ctx.translate(DrawingTask.OFFSET_FOR_TRANSPARENT, DrawingTask.OFFSET_FOR_TRANSPARENT);
+            this.ctx.translate(OFFSET_FOR_TRANSPARENT, OFFSET_FOR_TRANSPARENT);
         }
         if (center) {
             x = centerPosX;
@@ -102,7 +199,7 @@ class DrawingTask {
             x = this.getRelativeX();
             y = this.getRelativeY();
         }
-        if (this.boxResizeMode !== DrawingTask.BOX_RESIZE_TYPE.None) {
+        if (this.boxResizeMode !== BoxResizeType.None) {
             x -= shadowDx;
             y -= shadowDy;
         }
@@ -111,19 +208,19 @@ class DrawingTask {
             this.ctx.shadowOffsetX = shadowDx;
             this.ctx.shadowOffsetY = shadowDy;
             this.ctx.shadowBlur = shadowBlur;
-            this.ctx.shadowColor = DrawingTask.toColorText(shadowColor);
+            this.ctx.shadowColor = toColorText(shadowColor);
         } else {
             this.ctx.shadowOffsetX = shadowDx - DrawingTask.OFFSET_FOR_TRANSPARENT;
             this.ctx.shadowOffsetY = shadowDy - DrawingTask.OFFSET_FOR_TRANSPARENT;
             this.ctx.shadowBlur = shadowBlur;
-            this.ctx.shadowColor = DrawingTask.toColorText(shadowColor);
+            this.ctx.shadowColor = toColorText(shadowColor);
         }
         this.ctx.fill();
         if (!this.isTransparentFill && outlineWidth > 0) {
             this.ctx.shadowOffsetX = 0;
             this.ctx.shadowOffsetY = 0;
             this.ctx.shadowBlur = 0;
-            this.ctx.shadowColor = DrawingTask.toColorText(0);
+            this.ctx.shadowColor = toColorText(0);
             this.ctx.strokeStyle = outlineColor;
             this.ctx.lineWidth = outlineWidth;
             this.ctx.stroke();
@@ -154,11 +251,6 @@ class DrawingTask {
             this.ctx.fill();
             this.ctx.restore();
         }
-    }
-
-    updateBounds() {
-        const w = this.objectWidth;
-        const h = this.objectHeight;
     }
 
     preDraw() {
