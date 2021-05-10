@@ -20,7 +20,6 @@ const BoxResizeType = {
 };
 
 class DrawingTask {
-
     isTransparentFill = true;
     boundPos = {
         leftPos: -1,
@@ -58,7 +57,6 @@ class DrawingTask {
         this.objectHeight = 1 + Math.max(roundLeftTop + roundLeftBottom, roundRightTop + roundRightBottom);
     }
 
-
     draw() {
 
     }
@@ -72,16 +70,91 @@ class DrawingTask {
     }
 
     execute() {
-
+        this.draw();
         this.sendResponse().then(() => {
             console.log("complete: task id=" + this.id);
         });
     }
 
     drawShadow() {
-        const w = this.objectWidth;
-        const h = this.objectHeight;
+        this.preDraw();
+        //Set canvas size to calculated size
+        this.canvas.width = this.boundPos.canvasWidth;
+        this.canvas.height = this.boundPos.canvasHeight;
 
+        this.ctx.save();
+        this.ctx.fillStyle = null;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.restore();
+
+        this.drawShadowInternal(false, true);
+        this.drawNinePatchLines();
+    }
+
+    drawNinePatchLines(paddingValues) {
+        const {
+            outlineWidth
+        } = this.input;
+        let w = this.objectWidth;
+        let h = this.objectHeight;
+        let s = 0;
+        let offsetX = this.getRelativeX();
+        let offsetY = this.getRelativeY();
+        let ninePatchLineWidth = 1;
+        let width = this.canvas.width;
+        let height = this.canvas.height;
+
+        //Subtract outline width from content padding
+        if (!this.isTransparentFill) {
+            let outlineHalf = Math.round(outlineWidth / 2);
+            w -= outlineWidth;
+            h -= outlineWidth;
+            offsetX += outlineHalf;
+            offsetY += outlineHalf;
+        }
+
+        //Clear 1px frame around image for ninepatch pixels
+        //Top
+        this.ctx.clearRect(0, 0, width, ninePatchLineWidth);
+        //Bottom
+        this.ctx.clearRect(0, height - ninePatchLineWidth, width, ninePatchLineWidth);
+        //Left
+        this.ctx.clearRect(0, 0, ninePatchLineWidth, height);
+        //Right
+        this.ctx.clearRect(width - ninePatchLineWidth, 0, ninePatchLineWidth, height);
+
+        this.ctx.strokeStyle = "black";
+        this.ctx.lineWidth = ninePatchLineWidth * 2;
+
+        this.ctx.beginPath();
+
+        //Draw left
+        s = h / 2;
+        this.ctx.moveTo(0, Math.round(offsetY + s - NINEPATCH_SIZING_WIDTH / 2));
+        this.ctx.lineTo(0, Math.round(offsetY + s + NINEPATCH_SIZING_WIDTH));
+
+        //Draw top
+        s = w / 2;
+        this.ctx.moveTo(Math.round(offsetX + s - NINEPATCH_SIZING_WIDTH / 2), 0);
+        this.ctx.lineTo(Math.round(offsetX + s + NINEPATCH_SIZING_WIDTH), 0);
+
+        //Draw right
+        this.ctx.moveTo(Math.round(width), Math.round(offsetY + (h * paddingValues.verticalTop)));
+        this.ctx.lineTo(Math.round(width), Math.round(offsetY + h - (h * paddingValues.verticalBottom - ninePatchLineWidth)));
+
+        //Draw bottom
+        this.ctx.moveTo(Math.round(offsetX + (w * paddingValues.horizontalLeft)), Math.round(height));
+        this.ctx.lineTo(Math.round(offsetX + w - (w * paddingValues.horizontalRight)), Math.round(height));
+
+        this.ctx.closePath();
+        this.ctx.stroke();
+
+        //Clear right top corner
+        this.ctx.clearRect(width - ninePatchLineWidth, 0, ninePatchLineWidth, ninePatchLineWidth);
+        //Clear right bottom corner
+        this.ctx.clearRect(width - ninePatchLineWidth, height - ninePatchLineWidth, ninePatchLineWidth, ninePatchLineWidth);
+        //Clear left bottom corner
+        this.ctx.clearRect(0, height - ninePatchLineWidth, ninePatchLineWidth, ninePatchLineWidth);
     }
 
     updateBounds() {
@@ -267,10 +340,10 @@ class DrawingTask {
     async sendResponse() {
         const blob = await new Promise(resolve => {
             // noinspection JSUnresolvedVariable
-            if (canvas.toBlobHD) {
-                canvas.toBlobHD(resolve)
+            if (this.canvas.toBlobHD) {
+                this.canvas.toBlobHD(resolve)
             } else {
-                canvas.toBlob(resolve)
+                this.canvas.toBlob(resolve)
             }
         });
         const base64 = await new Promise(resolve => {
@@ -282,9 +355,9 @@ class DrawingTask {
             reader.readAsDataURL(blob);
         });
         // noinspection JSUnresolvedVariable
-        if (typeof __handler__ !== "undefined") {
+        if (typeof __taskManager__ !== "undefined") {
             // noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            __handler__.onResponse(JSON.stringify({
+            __taskManager__.onTaskComplete(JSON.stringify({
                 margin: [],
                 imageData: base64
             }, id));
