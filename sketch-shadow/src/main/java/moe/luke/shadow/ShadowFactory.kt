@@ -64,44 +64,44 @@ class ShadowFactory(context: Context) {
         @WorkerThread
         @JavascriptInterface
         fun onTaskComplete(output: String, id: String) {
-            GlobalScope.launch(Dispatchers.Default) {
-                val continuation = withContext(Dispatchers.Main) {
-                    runningTasks.remove(id)
-                } ?: return@launch
+            GlobalScope.launch(Dispatchers.Main) {
+                val continuation = runningTasks.remove(id) ?: return@launch
                 ensureActive()
-                val json = JSONObject(output)
-                if (json.has("error")) {
-                    continuation.resumeWithException(
-                        UnsupportedOperationException(
-                            json.getString(
-                                "error"
+                withContext(Dispatchers.Default) {
+                    val json = JSONObject(output)
+                    if (json.has("error")) {
+                        continuation.resumeWithException(
+                            UnsupportedOperationException(
+                                json.getString(
+                                    "error"
+                                )
                             )
                         )
-                    )
-                } else {
-                    val margin = json.getJSONArray("margin")
-                    val imageData = json.getString("imageData")
-                    val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
-                    val chunk = NinePatchChunk.create(bitmap).serializedChunk
-                    val drawable = ShadowDrawable(
-                        Rect(
-                            margin.getInt(0),
-                            margin.getInt(1),
-                            margin.getInt(2),
-                            margin.getInt(3)
-                        ),
-                        bitmap,
-                        chunk,
-                        NinePatchDrawable(
-                            webkit.resources,
+                    } else {
+                        val margin = json.getJSONArray("margin")
+                        val imageData = json.getString("imageData")
+                        val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
+                        val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
+                        val chunk = NinePatchChunk.create(bitmap).serializedChunk
+                        val drawable = ShadowDrawable(
+                            Rect(
+                                margin.getInt(0),
+                                margin.getInt(1),
+                                margin.getInt(2),
+                                margin.getInt(3)
+                            ),
                             bitmap,
                             chunk,
-                            null,
-                            null
+                            NinePatchDrawable(
+                                webkit.resources,
+                                bitmap,
+                                chunk,
+                                null,
+                                null
+                            )
                         )
-                    )
-                    continuation.resume(drawable)
+                        continuation.resume(drawable)
+                    }
                 }
             }
         }
