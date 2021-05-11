@@ -115,23 +115,23 @@ final class NinePatchChunk {
         Pair<List<Pair<Integer>>> left = getPatches(column, result);
         result = new boolean[1];
         Pair<List<Pair<Integer>>> top = getPatches(row, result);
-        List<Rectangle> mFixed = getRectangles(left.first, top.first);
-        List<Rectangle> mPatches = getRectangles(left.second, top.second);
+        List<Rectangle> fixed = getRectangles(left.first, top.first);
+        List<Rectangle> patches = getRectangles(left.second, top.second);
 
-        List<Rectangle> mHorizontalPatches;
-        List<Rectangle> mVerticalPatches;
-        if (!mFixed.isEmpty()) {
-            mHorizontalPatches = getRectangles(left.first, top.second);
-            mVerticalPatches = getRectangles(left.second, top.first);
+        List<Rectangle> horizontalPatches;
+        List<Rectangle> verticalPatches;
+        if (!fixed.isEmpty()) {
+            horizontalPatches = getRectangles(left.first, top.second);
+            verticalPatches = getRectangles(left.second, top.first);
         } else {
             if (!top.first.isEmpty()) {
-                mHorizontalPatches = new ArrayList<>(0);
-                mVerticalPatches = getVerticalRectangles(height, top.first);
+                horizontalPatches = new ArrayList<>(0);
+                verticalPatches = getVerticalRectangles(height, top.first);
             } else if (!left.first.isEmpty()) {
-                mHorizontalPatches = getHorizontalRectangles(width, left.first);
-                mVerticalPatches = new ArrayList<>(0);
+                horizontalPatches = getHorizontalRectangles(width, left.first);
+                verticalPatches = new ArrayList<>(0);
             } else {
-                mHorizontalPatches = mVerticalPatches = new ArrayList<>(0);
+                horizontalPatches = verticalPatches = new ArrayList<>(0);
             }
         }
 
@@ -147,11 +147,10 @@ final class NinePatchChunk {
         mVerticalPadding = getPadding(right.first);
 
         ArrayList<Rectangle> allRegions = new ArrayList<>();
-        allRegions.addAll(mHorizontalPatches);
-        allRegions.addAll(mVerticalPatches);
-        allRegions.addAll(mPatches);
-        allRegions.addAll(mFixed);
-        // Sort regions from top left to bottom right.
+        allRegions.addAll(horizontalPatches);
+        allRegions.addAll(verticalPatches);
+        allRegions.addAll(patches);
+        allRegions.addAll(fixed);
         //noinspection ComparatorCombinators
         Collections.sort(allRegions, (o1, o2) -> {
             int y = Integer.compare(o1.y, o2.y);
