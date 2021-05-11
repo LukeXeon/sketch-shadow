@@ -84,7 +84,7 @@ private constructor(context: Context) {
                         val imageData = json.getString("imageData")
                         val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
                         val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
-                        val chunk = NinePatchChunk.create(bitmap).serializedChunk
+                        val chunk = NinePatchChunk.findPatches(bitmap)
                         val drawable = ShadowDrawable(
                             Rect(
                                 margin.getInt(0),

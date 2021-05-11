@@ -38,48 +38,6 @@ import java.util.List;
  */
 final class NinePatchChunk {
 
-    private static final int[] sPaddingRect = new int[4];
-
-    private Pair<Integer> mHorizontalPadding;
-    private Pair<Integer> mVerticalPadding;
-    private byte[] mSerializedChunk;
-
-    /**
-     * Computes and returns the 9-patch chunks.
-     *
-     * @param image the image containing both the content and the control outer line.
-     * @return the {@link NinePatchChunk}.
-     */
-    public static NinePatchChunk create(Bitmap image) {
-        NinePatchChunk chunk = new NinePatchChunk();
-        chunk.findPatches(image);
-        return chunk;
-    }
-
-    /**
-     * Fills the given array with the nine patch padding.
-     *
-     * @param padding array of left, top, right, bottom padding
-     */
-    public void getPadding(int[] padding) {
-        padding[0] = mHorizontalPadding.first; // left
-        padding[2] = mHorizontalPadding.second; // right
-        padding[1] = mVerticalPadding.first; // top
-        padding[3] = mVerticalPadding.second; // bottom
-    }
-
-    /**
-     * Returns the padding as an int[] describing left, top, right, bottom.
-     * <p>
-     * This method is not thread-safe and returns an array owned by the {@link NinePatchChunk}
-     * class.
-     *
-     * @return an internal array filled with the padding.
-     */
-    public int[] getPadding() {
-        getPadding(sPaddingRect);
-        return sPaddingRect;
-    }
 
     private static int[] getPixels(Bitmap img, int x, int y, int w, int h, int[] pixels) {
         if (w == 0 || h == 0) {
@@ -98,7 +56,7 @@ final class NinePatchChunk {
      * Finds the 9-patch patches and padding from a {@link Bitmap} image that contains
      * both the image content and the control outer lines.
      */
-    private void findPatches(Bitmap image) {
+    public static byte[] findPatches(Bitmap image) {
         // the size of the actual image content
         int width = image.getWidth() - 2;
         int height = image.getHeight() - 2;
@@ -141,10 +99,10 @@ final class NinePatchChunk {
         column = getPixels(image, width + 1, 1, 1, height, column);
 
         Pair<List<Pair<Integer>>> bottom = getPatches(row, result);
-        mHorizontalPadding = getPadding(bottom.first);
+        Pair<Integer> horizontalPadding = getPadding(bottom.first);
 
         Pair<List<Pair<Integer>>> right = getPatches(column, result);
-        mVerticalPadding = getPadding(right.first);
+        Pair<Integer> verticalPadding = getPadding(right.first);
 
         ArrayList<Rectangle> allRegions = new ArrayList<>();
         allRegions.addAll(horizontalPatches);
@@ -173,10 +131,10 @@ final class NinePatchChunk {
             oos.writeByte(allRegions.size()); // numColors (1 byte)
             oos.writeInt(xDivsOffset); // xDivsOffset (4 bytes)
             oos.writeInt(yDivsOffset); // yDivsOffset (4 bytes)
-            oos.writeInt(mHorizontalPadding.first); // paddingLeft (4 bytes)
-            oos.writeInt(mHorizontalPadding.second); // paddingRight (4 bytes)
-            oos.writeInt(mVerticalPadding.first); // paddingTop (4 bytes)
-            oos.writeInt(mVerticalPadding.second); // paddingBottom (4 bytes)
+            oos.writeInt(horizontalPadding.first); // paddingLeft (4 bytes)
+            oos.writeInt(horizontalPadding.second); // paddingRight (4 bytes)
+            oos.writeInt(verticalPadding.first); // paddingTop (4 bytes)
+            oos.writeInt(verticalPadding.second); // paddingBottom (4 bytes)
             oos.writeInt(colorsOffset); // colorsOffset (4 bytes)
             for (Pair<Integer> patch : top.second) { // xDivs
                 oos.writeInt(patch.first); // left position (4 bytes)
@@ -191,10 +149,10 @@ final class NinePatchChunk {
             }
         } catch (IOException ignore) {
         }
-        mSerializedChunk = baos.toByteArray();
+        return baos.toByteArray();
     }
 
-    private List<Rectangle> getVerticalRectangles(
+    private static List<Rectangle> getVerticalRectangles(
             int imageHeight,
             List<Pair<Integer>> topPairs
     ) {
@@ -208,7 +166,7 @@ final class NinePatchChunk {
         return rectangles;
     }
 
-    private List<Rectangle> getHorizontalRectangles(
+    private static List<Rectangle> getHorizontalRectangles(
             int imageWidth,
             List<Pair<Integer>> leftPairs
     ) {
@@ -222,7 +180,7 @@ final class NinePatchChunk {
         return rectangles;
     }
 
-    private Pair<Integer> getPadding(List<Pair<Integer>> pairs) {
+    private static Pair<Integer> getPadding(List<Pair<Integer>> pairs) {
         if (pairs.isEmpty()) {
             return new Pair<>(0, 0);
         } else if (pairs.size() == 1) {
@@ -238,7 +196,7 @@ final class NinePatchChunk {
         }
     }
 
-    private List<Rectangle> getRectangles(
+    private static List<Rectangle> getRectangles(
             List<Pair<Integer>> leftPairs,
             List<Pair<Integer>> topPairs
     ) {
@@ -273,7 +231,7 @@ final class NinePatchChunk {
      *                       a patch (stretchable area) is first or not.
      * @return xxx
      */
-    private Pair<List<Pair<Integer>>> getPatches(int[] pixels, boolean[] startWithPatch) {
+    private static Pair<List<Pair<Integer>>> getPatches(int[] pixels, boolean[] startWithPatch) {
         int lastIndex = 0;
         int lastPixel = pixels[0];
         boolean first = true;
@@ -338,10 +296,6 @@ final class NinePatchChunk {
             return 0; // android::Res_png_9patch::TRANSPARENT_COLOR
         }
         return expectedColor;
-    }
-
-    public byte[] getSerializedChunk() {
-        return mSerializedChunk;
     }
 
     /**
