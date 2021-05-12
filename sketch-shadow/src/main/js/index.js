@@ -1,3 +1,5 @@
+import "@babel/polyfill";
+
 function toColorText(number) {
     const alpha = number >> 24 & 0xff;
     const red = number >> 16 & 0xff;
@@ -9,7 +11,7 @@ function toColorText(number) {
 const CANVAS_MAX_WIDTH = 500;
 const CANVAS_MAX_HEIGHT = 500;
 const OFFSET_FOR_TRANSPARENT = -9999;
-let NINE_PATCH_SIZING_WIDTH = 4;
+const NINE_PATCH_SIZING_WIDTH = 4;
 
 const BoxResizeType = {
     None: 0,
@@ -32,6 +34,18 @@ class DrawingTask {
     boxResizeMode = BoxResizeType.None;
 
     constructor(input, id) {
+        this.id = id;
+        this.processInput(input);
+        this.processObjectSize();
+        this.prepareCanvas();
+    }
+
+    prepareCanvas() {
+        this.canvas = document.createElement('canvas');
+        this.ctx = this.canvas.getContext("2d");
+    }
+
+    processInput(input) {
         const json = JSON.parse(input);
         for (let key of Object.keys(json)) {
             if (key.startsWith("round")) {
@@ -42,22 +56,18 @@ class DrawingTask {
                 input[key] = Math.max(0, input[key])
             }
         }
+        this.input = json;
+    }
+
+    processObjectSize() {
         const {
             roundLeftTop,
             roundRightTop,
             roundLeftBottom,
             roundRightBottom
-        } = json;
-        this.canvas = document.createElement('canvas');
-        this.ctx = this.canvas.getContext("2d");
-        this.input = json;
-        this.id = id;
-        this.objectWidth = 1 + Math.max(roundLeftTop + roundRightTop, roundLeftBottom + roundRightBottom);
-        this.objectHeight = 1 + Math.max(roundLeftTop + roundLeftBottom, roundRightTop + roundRightBottom);
-    }
-
-    draw() {
-        this.drawShadow()
+        } = this.input;
+        this.objectWidth = 1 + Math.max(roundLeftTop, roundLeftBottom) + Math.max(roundRightTop, roundRightBottom);
+        this.objectHeight = 1 + Math.max(roundLeftTop, roundRightTop) + Math.max(roundLeftBottom, roundRightBottom);
     }
 
     getRelativeX() {
@@ -68,9 +78,13 @@ class DrawingTask {
         return Math.round((CANVAS_MAX_HEIGHT / 2) - (this.objectHeight / 2) - this.boundPos.topPos);
     }
 
-    execute() {
-        this.draw();
-        this.sendResponse().then(() => console.log("complete: task id=" + this.id));
+    execute(callback) {
+        this.drawShadow();
+        this.sendResponse().then(output => {
+            if (callback){
+                callback(output)
+            }
+        });
     }
 
     drawShadow() {
@@ -159,17 +173,21 @@ class DrawingTask {
             paddingLeft,
             paddingRight,
             paddingTop,
-            paddingBottom
+            paddingBottom,
+            roundLeftTop,
+            roundRightTop,
+            roundLeftBottom,
+            roundRightBottom
         } = this.input;
         const w = this.objectWidth;
         const h = this.objectHeight;
         this.boundPos.leftPos = this.boundPos.topPos = Number.MAX_VALUE;
         this.boundPos.rightPos = this.boundPos.bottomPos = -1;
 
-        let imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        let imageWidth = imgData.width;
-        let imageHeight = imgData.height;
-        let imageData = imgData.data;
+        const imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        const imageWidth = imgData.width;
+        const imageHeight = imgData.height;
+        const imageData = imgData.data;
 
         //Iterate through all pixels in image
         //used to get image bounds (where shadow ends)
@@ -227,10 +245,10 @@ class DrawingTask {
         this.boundPos.canvasHeight = Math.round(this.canvas.height - (this.boundPos.topPos + this.boundPos.bottomPos));
 
         //Add clipping If set
-        let clipLeft = getRelativeX() + roundRadius.lowerLeft;
-        let clipTop = getRelativeY() + roundRadius.upperLeft;
-        let clipRight = boundPos.canvasWidth - objectWidth - getRelativeX() + roundRadius.lowerRight;
-        let clipBottom = boundPos.canvasHeight - objectHeight - getRelativeY() + roundRadius.upperRight;
+        let clipLeft = this.getRelativeX() + roundLeftBottom;
+        let clipTop = this.getRelativeY() + roundLeftTop;
+        let clipRight = this.boundPos.canvasWidth - this.objectWidth - this.getRelativeX() + roundRightBottom;
+        let clipBottom = this.boundPos.canvasHeight - this.objectHeight - this.getRelativeY() + roundRightTop;
 
         this.boundPos.leftPos += clipLeft;
         this.boundPos.topPos += clipTop;
@@ -241,6 +259,13 @@ class DrawingTask {
 
         this.boundPos.canvasWidth -= clipLeft + clipRight;
         this.boundPos.canvasHeight -= clipBottom + clipTop;
+    }
+
+    setShadow(shadowDx, shadowDy, shadowBlur, shadowColor) {
+        this.ctx.shadowOffsetX = shadowDx;
+        this.ctx.shadowOffsetY = shadowDy;
+        this.ctx.shadowBlur = shadowBlur;
+        this.ctx.shadowColor = toColorText(shadowColor);
     }
 
     drawShadowInternal(center, translate) {
@@ -255,8 +280,8 @@ class DrawingTask {
         } = this.input;
         const w = this.objectWidth;
         const h = this.objectHeight;
-        const centerPosX = Math.round((canvas.width / 2) - (w / 2));
-        const centerPosY = Math.round((canvas.height / 2) - (h / 2));
+        const centerPosX = Math.round((this.canvas.width / 2) - (w / 2));
+        const centerPosY = Math.round((this.canvas.height / 2) - (h / 2));
         let x, y;
         this.ctx.save();
         if (this.isTransparentFill) {
@@ -275,22 +300,18 @@ class DrawingTask {
         }
         this.roundRect(x, y);
         if (!this.isTransparentFill) {
-            this.ctx.shadowOffsetX = shadowDx;
-            this.ctx.shadowOffsetY = shadowDy;
-            this.ctx.shadowBlur = shadowBlur;
-            this.ctx.shadowColor = toColorText(shadowColor);
+            this.setShadow(shadowDx, shadowDy, shadowBlur, shadowColor);
         } else {
-            this.ctx.shadowOffsetX = shadowDx - DrawingTask.OFFSET_FOR_TRANSPARENT;
-            this.ctx.shadowOffsetY = shadowDy - DrawingTask.OFFSET_FOR_TRANSPARENT;
-            this.ctx.shadowBlur = shadowBlur;
-            this.ctx.shadowColor = toColorText(shadowColor);
+            this.setShadow(
+                shadowDx - OFFSET_FOR_TRANSPARENT,
+                shadowDy - OFFSET_FOR_TRANSPARENT,
+                shadowBlur,
+                shadowColor
+            );
         }
         this.ctx.fill();
         if (!this.isTransparentFill && outlineWidth > 0) {
-            this.ctx.shadowOffsetX = 0;
-            this.ctx.shadowOffsetY = 0;
-            this.ctx.shadowBlur = 0;
-            this.ctx.shadowColor = toColorText(0);
+            this.setShadow(0, 0, 0, 0);
             this.ctx.strokeStyle = outlineColor;
             this.ctx.lineWidth = outlineWidth;
             this.ctx.stroke();
@@ -306,7 +327,7 @@ class DrawingTask {
             x = this.getRelativeX();
             y = this.getRelativeY();
         }
-        if (this.boxResizeMode !== DrawingTask.BOX_RESIZE_TYPE.None) {
+        if (this.boxResizeMode !== BoxResizeType.None) {
             x -= shadowDx;
             y -= shadowDy;
         }
@@ -331,7 +352,7 @@ class DrawingTask {
         this.drawShadowInternal(true);
         this.updateBounds();
         this.isTransparentFill = isTransparentFillTemp;
-        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     roundRect(x, y) {
@@ -391,11 +412,14 @@ class DrawingTask {
         } else {
             console.log("output", output)
         }
+        return output;
     }
 
 }
 
 // noinspection JSUnusedGlobalSymbols
-export default async function createNinePatch(input, id) {
+async function createNinePatch(input, id) {
     new DrawingTask(input, id).execute();
 }
+
+global.createNinePatch = createNinePatch;
