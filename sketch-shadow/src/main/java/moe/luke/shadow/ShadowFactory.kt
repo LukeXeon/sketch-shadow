@@ -41,7 +41,13 @@ private constructor(context: Context) {
         }
 
         private suspend fun runTask(input: JSONObject): ShadowDrawable {
-            val output = webkit.evaluateJavascript("createNinePatch('$input');")
+            val output = withContext(Dispatchers.Main) {
+                suspendCoroutine<String> { continuation ->
+                    webkit.evaluateJavascriptCompat("createNinePatch('$input');") {
+                        continuation.resume(it)
+                    }
+                }
+            }
             return withContext(Dispatchers.Default) {
                 val json = JSONObject(output)
                 if (json.has("error")) {

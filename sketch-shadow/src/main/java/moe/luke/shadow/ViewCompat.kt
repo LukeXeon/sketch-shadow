@@ -7,15 +7,9 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
 import android.webkit.WebView
-import androidx.annotation.Keep
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.*
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 private val FLAG_CLIP_TO_PADDING by lazy {
     ViewGroup::class.java.getDeclaredField("FLAG_CLIP_TO_PADDING")
@@ -87,54 +81,53 @@ internal var ViewGroup.clipToPaddingCompat: Boolean
     }
 
 @SuppressLint("JavascriptInterface", "AddJavascriptInterface")
-internal suspend fun WebView.evaluateJavascript(script: String): String {
-    val webView = this
-    return withContext(Dispatchers.Main) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            suspendCoroutine { continuation ->
-                webView.evaluateJavascript(script) {
-                    continuation.resume(it)
+internal fun WebView.evaluateJavascriptCompat(
+    script: String,
+    callback: ValueCallback<String>? = null
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+        evaluateJavascript(script, callback)
+    } else {
+        val internalScript0 = """(function(){$script})();""".trimIndent()
+        if (callback == null) {
+            loadUrl(internalScript0)
+        } else {
+            val internalCallback = object : Any() {
+
+                val id: String by lazy {
+                    "evaluateJavascript_callback_" + UUID.randomUUID().toString()
+                        .replace("-", "")
+                }
+
+                @JavascriptInterface
+                fun onResponse(output: String) {
+                    post {
+                        removeJavascriptInterface(id)
+                        callback.onReceiveValue(output)
+                    }
+                }
+
+                @JavascriptInterface
+                fun onFallback() {
+                    post {
+                        removeJavascriptInterface(id)
+                    }
                 }
             }
-        } else {
-            suspendCoroutine { continuation ->
-                val callback = @Keep object : Any() {
-
-                    val id: String by lazy {
-                        "evaluateJavascript_callback_" + UUID.randomUUID().toString()
-                            .replace("-", "")
-                    }
-
-                    @JavascriptInterface
-                    fun onResponse(output: String) {
-                        GlobalScope.launch(Dispatchers.Main) {
-                            webView.removeJavascriptInterface(id)
-                            continuation.resume(output)
-                        }
-                    }
-
-                    @JavascriptInterface
-                    fun onFallback() {
-                        GlobalScope.launch(Dispatchers.Main) {
-                            webView.removeJavascriptInterface(id)
-                        }
-                    }
-                }
-                webView.addJavascriptInterface(callback, callback.id)
-                val wrapper = """javascript:(function(){
+            addJavascriptInterface(internalCallback, internalCallback.id)
+            val internalScript1 = """javascript:(function(){
                         try {
-                            var result = (function(){$script})();
-                            if (typeof ${callback.id} !== "undefined") {
-                                ${callback.id}.onResponse(result);
+                            var result = $internalScript0
+                            if (typeof ${internalCallback.id} !== "undefined") {
+                                ${internalCallback.id}.onResponse(result);
                             }
                         } catch (e) {
-                            if (typeof ${callback.id} !== "undefined") {
-                                ${callback.id}.onFallback();
+                            if (typeof ${internalCallback.id} !== "undefined") {
+                                ${internalCallback.id}.onFallback();
                             }
                         }
                 })();""".trimIndent()
-                webView.loadUrl(wrapper)
-            }
+            loadUrl(internalScript1)
         }
     }
 }
