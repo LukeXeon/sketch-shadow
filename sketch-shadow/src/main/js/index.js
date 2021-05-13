@@ -22,6 +22,7 @@ const BoxResizeType = {
 
 class DrawingTask {
     isTransparentFill = true;
+
     boundPos = {
         leftPos: -1,
         topPos: -1,
@@ -31,17 +32,19 @@ class DrawingTask {
         canvasHeight: -1,
         clipLeft: -1
     };
+
+    margin = [];
+
     boxResizeMode = BoxResizeType.None;
 
-    constructor(input, id) {
-        this.id = id;
+    constructor(input) {
         this.processInput(input);
         this.processObjectSize();
         this.prepareCanvas();
     }
 
     prepareCanvas() {
-        this.canvas = document.createElement('canvas');
+        this.canvas = document.createElement('canvas').transferControlToOffscreen();
         this.ctx = this.canvas.getContext("2d");
     }
 
@@ -78,13 +81,9 @@ class DrawingTask {
         return Math.round((CANVAS_MAX_HEIGHT / 2) - (this.objectHeight / 2) - this.boundPos.topPos);
     }
 
-    execute(callback) {
+    execute() {
         this.drawShadow();
-        this.sendResponse().then(output => {
-            if (callback){
-                callback(output)
-            }
-        });
+        return this.createResponse();
     }
 
     drawShadow() {
@@ -221,6 +220,9 @@ class DrawingTask {
             ' shadow [', actualPaddingTop, actualPaddingRight, actualPaddingBottom, actualPaddingLeft, ']'].join(' ');
         //show the actual size
         console.log(msg);
+
+        this.margin = [actualPaddingLeft, actualPaddingTop, actualPaddingRight, actualPaddingBottom];
+
         //change to desire bounds
         if (paddingLeft !== 0) {
             this.boundPos.leftPos = (imageWidth - w) / 2 - paddingLeft;
@@ -377,49 +379,27 @@ class DrawingTask {
         this.ctx.closePath();
     }
 
-    async sendResponse() {
-        let output;
-        try {
-            const blob = await new Promise(resolve => {
-                // noinspection JSUnresolvedVariable
-                if (this.canvas.toBlobHD) {
-                    this.canvas.toBlobHD(resolve)
-                } else {
-                    this.canvas.toBlob(resolve)
-                }
-            });
-            const base64 = await new Promise(resolve => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    resolve(reader.result)
-                };
-                // noinspection JSCheckFunctionSignatures
-                reader.readAsDataURL(blob);
-            });
-            output = {
-                margin: [],
-                imageData: base64
-            };
-        } catch (e) {
-            output = {
-                error: e.message
-            };
-        }
+    createResponse() {
+        let base64;
         // noinspection JSUnresolvedVariable
-        if (typeof __taskManager__ !== "undefined") {
-            // noinspection JSUnresolvedFunction,JSUnresolvedVariable
-            __taskManager__.onTaskComplete(JSON.stringify(output, id));
+        if (this.canvas.toDataURLHD) {
+            base64 = this.canvas.toDataURLHD()
         } else {
-            console.log("output", output)
+            base64 = this.canvas.toDataURL()
         }
-        return output;
+        return {
+            margin: this.margin,
+            imageData: base64
+        };
     }
-
 }
 
-// noinspection JSUnusedGlobalSymbols
-async function createNinePatch(input, id) {
-    new DrawingTask(input, id).execute();
+function createNinePatch(input) {
+    try {
+        return new DrawingTask(input).execute();
+    } catch (e) {
+        return {error: e.message};
+    }
 }
 
 global.createNinePatch = createNinePatch;
