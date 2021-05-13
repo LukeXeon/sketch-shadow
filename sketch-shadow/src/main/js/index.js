@@ -396,9 +396,9 @@ class DrawingTask {
 
 function createNinePatch(input) {
     try {
-        return new DrawingTask(input).execute();
+        return JSON.stringify(new DrawingTask(input).execute());
     } catch (e) {
-        return {error: e.message};
+        return JSON.stringify({error: e.message});
     }
 }
 
