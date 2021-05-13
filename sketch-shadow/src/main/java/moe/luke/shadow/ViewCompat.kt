@@ -124,9 +124,8 @@ internal suspend fun WebView.evaluateJavascript(script: String): String {
                 val wrapper = """javascript:(function(){
                         try {
                             var result = (function(){$script})();
-                            var json = JSON.stringify(result);
                             if (typeof ${callback.id} !== "undefined") {
-                                ${callback.id}.onResponse(json);
+                                ${callback.id}.onResponse(result);
                             }
                         } catch (e) {
                             if (typeof ${callback.id} !== "undefined") {
