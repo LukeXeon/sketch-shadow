@@ -1,11 +1,15 @@
 import "@babel/polyfill";
 
 function toColorText(number) {
-    const alpha = number >> 24 & 0xff;
-    const red = number >> 16 & 0xff;
-    const green = number >> 8 & 0xff;
-    const blue = number & 0xff;
-    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+    if (number instanceof Number) {
+        const alpha = number >> 24 & 0xff;
+        const red = number >> 16 & 0xff;
+        const green = number >> 8 & 0xff;
+        const blue = number & 0xff;
+        return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+    } else {
+        return number;
+    }
 }
 
 const CANVAS_MAX_WIDTH = 500;
@@ -44,13 +48,12 @@ class DrawingTask {
     }
 
     prepareCanvas() {
-        this.canvas = document.createElement('canvas').transferControlToOffscreen();
+        this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext("2d");
     }
 
     processInput(input) {
-        const json = JSON.parse(input);
-        for (let key of Object.keys(json)) {
+        for (let key of Object.keys(input)) {
             if (key.startsWith("round")) {
                 input[key] = Math.max(0, input[key])
             } else if (key.startsWith("padding")) {
@@ -59,7 +62,7 @@ class DrawingTask {
                 input[key] = Math.max(0, input[key])
             }
         }
-        this.input = json;
+        this.input = input;
     }
 
     processObjectSize() {
@@ -69,8 +72,9 @@ class DrawingTask {
             roundLeftBottom,
             roundRightBottom
         } = this.input;
-        this.objectWidth = 1 + Math.max(roundLeftTop, roundLeftBottom) + Math.max(roundRightTop, roundRightBottom);
-        this.objectHeight = 1 + Math.max(roundLeftTop, roundRightTop) + Math.max(roundLeftBottom, roundRightBottom);
+        this.objectWidth = 200 + Math.max(roundLeftTop, roundLeftBottom) + Math.max(roundRightTop, roundRightBottom);
+        this.objectHeight = 200 + Math.max(roundLeftTop, roundRightTop) + Math.max(roundLeftBottom, roundRightBottom);
+        console.log("objectSize", this.objectWidth, this.objectHeight);
     }
 
     getRelativeX() {
@@ -169,14 +173,14 @@ class DrawingTask {
 
     updateBounds() {
         const {
-            paddingLeft,
-            paddingRight,
-            paddingTop,
-            paddingBottom,
-            roundLeftTop,
-            roundRightTop,
-            roundLeftBottom,
-            roundRightBottom
+            paddingLeft = 0,
+            paddingRight = 0,
+            paddingTop = 0,
+            paddingBottom = 0,
+            roundLeftTop = 0,
+            roundRightTop = 0,
+            roundLeftBottom = 0,
+            roundRightBottom = 0
         } = this.input;
         const w = this.objectWidth;
         const h = this.objectHeight;
@@ -261,6 +265,8 @@ class DrawingTask {
 
         this.boundPos.canvasWidth -= clipLeft + clipRight;
         this.boundPos.canvasHeight -= clipBottom + clipTop;
+
+        console.log("boundPos", this.boundPos);
     }
 
     setShadow(shadowDx, shadowDy, shadowBlur, shadowColor) {
@@ -268,6 +274,7 @@ class DrawingTask {
         this.ctx.shadowOffsetY = shadowDy;
         this.ctx.shadowBlur = shadowBlur;
         this.ctx.shadowColor = toColorText(shadowColor);
+        console.log("setShadow", shadowDx, shadowDy, shadowBlur, toColorText(shadowColor));
     }
 
     drawShadowInternal(center, translate) {
@@ -387,6 +394,7 @@ class DrawingTask {
         } else {
             base64 = this.canvas.toDataURL()
         }
+        console.log(this.canvas);
         return {
             margin: this.margin,
             imageData: base64
@@ -396,10 +404,26 @@ class DrawingTask {
 
 function createNinePatch(input) {
     try {
-        return JSON.stringify(new DrawingTask(input).execute());
+        return JSON.stringify(new DrawingTask(JSON.parse(input)).execute());
     } catch (e) {
         return JSON.stringify({error: e.message});
     }
 }
 
 global.createNinePatch = createNinePatch;
+
+const source = JSON.parse(createNinePatch(JSON.stringify({
+    roundLeftTop: 100,
+    roundRightTop: 100,
+    roundLeftBottom: 100,
+    roundRightBottom: 100,
+    shadowColor: 'rgba(90,90,90,0.28)',
+    shadowBlur: 12
+})));
+
+const img = document.createElement('img');
+
+img.src = source.imageData;
+img.width = 417;
+img.height = 417;
+document.documentElement.appendChild(img);

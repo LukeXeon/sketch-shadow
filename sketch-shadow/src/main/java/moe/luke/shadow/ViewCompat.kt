@@ -9,6 +9,8 @@ import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebView
+import proguard.annotation.Keep as ProguardKeep
+import androidx.annotation.Keep as AndroidXKeep
 import java.util.*
 
 private val FLAG_CLIP_TO_PADDING by lazy {
@@ -92,7 +94,7 @@ internal fun WebView.evaluateJavascriptCompat(
         if (callback == null) {
             loadUrl(internalScript0)
         } else {
-            val internalCallback = object : Any() {
+            val internalCallback = @AndroidXKeep @ProguardKeep object : Any() {
 
                 val id: String by lazy {
                     "evaluateJavascript_callback_" + UUID.randomUUID().toString()

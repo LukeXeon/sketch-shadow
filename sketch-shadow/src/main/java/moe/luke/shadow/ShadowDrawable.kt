@@ -9,7 +9,6 @@ import android.os.Parcel
 import android.os.Parcelable
 import android.view.View
 import android.view.ViewGroup
-import androidx.annotation.RequiresApi
 
 class ShadowDrawable internal constructor(
     private val margin: Rect,
@@ -27,7 +26,7 @@ class ShadowDrawable internal constructor(
             val parent = callback.parent
             if (parent is ViewGroup) {
                 if (parent.clipChildrenCompat
-                    || parent.clipToOutlineCompat
+                    || parent.clipToPaddingCompat
                     || parent.clipToOutlineCompat
                 ) {
                     parent.clipChildrenCompat = false
@@ -56,9 +55,12 @@ class ShadowDrawable internal constructor(
         )
     }
 
-    @RequiresApi(Build.VERSION_CODES.KITKAT)
     override fun getAlpha(): Int {
-        return ninePatchDrawable.alpha
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            ninePatchDrawable.alpha
+        } else {
+            ninePatchDrawable.paint.alpha
+        }
     }
 
     override fun setAlpha(alpha: Int) {
@@ -97,9 +99,9 @@ class ShadowDrawable internal constructor(
 
     companion object CREATOR : Parcelable.Creator<ShadowDrawable> {
         override fun createFromParcel(parcel: Parcel): ShadowDrawable {
-            val margin = parcel.readParcelable<Rect>(Rect::class.java.classLoader)!!
-            val bitmap = parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader)!!
-            val chunk = parcel.createByteArray()!!
+            val margin = requireNotNull(parcel.readParcelable<Rect>(Rect::class.java.classLoader))
+            val bitmap = requireNotNull(parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader))
+            val chunk = requireNotNull(parcel.createByteArray())
             return ShadowDrawable(
                 margin, bitmap, chunk,
                 NinePatchDrawable(Resources.getSystem(), bitmap, chunk, null, null)
