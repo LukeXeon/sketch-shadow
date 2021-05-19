@@ -1,196 +1,215 @@
-import "@babel/polyfill";
+function createNinePatch(input) {
+    let canvas = document.createElement("canvas");
+    let ctx = canvas.getContext("2d");
 
-function toColorText(number) {
-    if (number instanceof Number) {
-        const alpha = number >> 24 & 0xff;
-        const red = number >> 16 & 0xff;
-        const green = number >> 8 & 0xff;
-        const blue = number & 0xff;
-        return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-    } else {
-        return number;
-    }
-}
+    let BOX_RESIZE_TYPE = {None: 0, Right: 1, Bottom: 2, Corner: 3};
 
-const CANVAS_MAX_WIDTH = 500;
-const CANVAS_MAX_HEIGHT = 500;
-const OFFSET_FOR_TRANSPARENT = -9999;
-const NINE_PATCH_SIZING_WIDTH = 4;
-
-const BoxResizeType = {
-    None: 0,
-    Right: 1,
-    Bottom: 2,
-    Corner: 3
-};
-
-class DrawingTask {
-    isTransparentFill = true;
-
-    boundPos = {
-        leftPos: -1,
-        topPos: -1,
-        rightPos: -1,
-        bottomPos: -1,
-        canvasWidth: -1,
-        canvasHeight: -1,
-        clipLeft: -1
+    let boundPos = {
+        leftPos: -1, topPos: -1, rightPos: -1, bottomPos: -1, canvasWidth: -1, canvasHeight: -1, clipLeft: -1
     };
+    let clipSide = {left: false, top: false, right: false, bottom: false};
+    let shadowColor, fillColor, backgroundFillColor, outlineColor, shadowBlur, shadowOffsetX, shadowOffsetY,
+        outlineWidth, isTransparentFill, roundRadius, hideNinepatches,
+        showContentArea;
+    let objectWidth = 200, objectHeight = 200;
+    let boxResizeMode = 0, boxResizeData = null, BOX_ANCHOR = 6;
 
-    margin = [];
+    let paddingLeft = 0;
+    let paddingRight = 0;
+    let paddingTop = 0;
+    let paddingBottom = 0;
 
-    boxResizeMode = BoxResizeType.None;
+    let CANVAS_MIN_WIDTH = 10, CANVAS_MIN_HEIGHT = 10;
+    let CANVAS_MAX_WIDTH = 500, CANVAS_MAX_HEIGHT = 500;
+    let CONTENT_AREA_COLOR = "rgba(53, 67, 172, 0.6)";
+    let NINEPATCH_SIZING_WIDTH = 4;
 
-    constructor(input) {
-        this.processInput(input);
-        this.processObjectSize();
-        this.prepareCanvas();
+    function toColorText(number) {
+        if (number instanceof Number) {
+            const alpha = number >> 24 & 0xff;
+            const red = number >> 16 & 0xff;
+            const green = number >> 8 & 0xff;
+            const blue = number & 0xff;
+            return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+        } else {
+            return number;
+        }
     }
 
-    prepareCanvas() {
-        this.canvas = document.createElement('canvas');
-        this.ctx = this.canvas.getContext("2d");
-    }
+    function roundRect(ctx, x, y, width, height, radius) {
+        let cornerRadius = {upperLeft: 0, upperRight: 0, lowerLeft: 0, lowerRight: 0};
 
-    processInput(input) {
-        for (let key of Object.keys(input)) {
-            if (key.startsWith("round")) {
-                input[key] = Math.max(0, input[key])
-            } else if (key.startsWith("padding")) {
-                input[key] = Math.max(-1, input[key])
-            } else if (key === "outlineWidth") {
-                input[key] = Math.max(0, input[key])
+        if (typeof radius === "object") {
+            for (let side of radius) {
+                cornerRadius[side] = radius[side];
             }
         }
-        this.input = input;
+
+        ctx.beginPath();
+        ctx.moveTo(x + cornerRadius.upperLeft, y);
+        ctx.lineTo(x + width - cornerRadius.upperRight, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + cornerRadius.upperRight);
+        ctx.lineTo(x + width, y + height - cornerRadius.lowerRight);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - cornerRadius.lowerRight, y + height);
+        ctx.lineTo(x + cornerRadius.lowerLeft, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - cornerRadius.lowerLeft);
+        ctx.lineTo(x, y + cornerRadius.upperLeft);
+        ctx.quadraticCurveTo(x, y, x + cornerRadius.upperLeft, y);
+        ctx.closePath();
     }
 
-    processObjectSize() {
-        const {
-            roundLeftTop,
-            roundRightTop,
-            roundLeftBottom,
-            roundRightBottom
-        } = this.input;
-        this.objectWidth = 200 + Math.max(roundLeftTop, roundLeftBottom) + Math.max(roundRightTop, roundRightBottom);
-        this.objectHeight = 200 + Math.max(roundLeftTop, roundRightTop) + Math.max(roundLeftBottom, roundRightBottom);
-        console.log("objectSize", this.objectWidth, this.objectHeight);
+    function setShadow(x, y, b, c) {
+        ctx.shadowOffsetX = x;
+        ctx.shadowOffsetY = y;
+        ctx.shadowBlur = b;
+        ctx.shadowColor = c;
     }
 
-    getRelativeX() {
-        return Math.round((CANVAS_MAX_WIDTH / 2) - (this.objectWidth / 2) - this.boundPos.leftPos);
+    function exportAsDataURL() {
+        if (canvas.toDataURLHD) {
+            return canvas.toDataURLHD()
+        } else {
+            return canvas.toDataURL()
+        }
     }
 
-    getRelativeY() {
-        return Math.round((CANVAS_MAX_HEIGHT / 2) - (this.objectHeight / 2) - this.boundPos.topPos);
+    function predraw(w, h, radius) {
+        canvas.width = CANVAS_MAX_WIDTH;
+        canvas.height = CANVAS_MAX_HEIGHT;
+
+        let transparentTmp = isTransparentFill;
+        isTransparentFill = false;
+        drawShadowInternal(w, h, radius, true);
+
+        updateBounds(w, h);
+
+        isTransparentFill = transparentTmp;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    execute() {
-        this.drawShadow();
-        return this.createResponse();
-    }
+    function drawShadow(w, h, radius, fast) {
+        let paddingValues = getPaddingValues();
 
-    drawShadow() {
-        this.preDraw();
-        //Set canvas size to calculated size
-        this.canvas.width = this.boundPos.canvasWidth;
-        this.canvas.height = this.boundPos.canvasHeight;
-
-        this.ctx.save();
-        this.ctx.fillStyle = null;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.restore();
-
-        this.drawShadowInternal(false, true);
-        this.drawNinePatchLines();
-    }
-
-    drawNinePatchLines() {
-        const {
-            outlineWidth
-        } = this.input;
-        let w = this.objectWidth;
-        let h = this.objectHeight;
-        let s = 0;
-        let offsetX = this.getRelativeX();
-        let offsetY = this.getRelativeY();
-        let ninePatchLineWidth = 1;
-        let width = this.canvas.width;
-        let height = this.canvas.height;
-
-        //Subtract outline width from content padding
-        if (!this.isTransparentFill) {
-            const outlineHalf = Math.round(outlineWidth / 2);
-            w -= outlineWidth;
-            h -= outlineWidth;
-            offsetX += outlineHalf;
-            offsetY += outlineHalf;
+        //First time draw with filled background
+        //for calculating final size of ninepatch
+        if (!fast) {
+            predraw(w, h, radius);
         }
 
-        //Clear 1px frame around image for ninepatch pixels
-        //Top
-        this.ctx.clearRect(0, 0, width, ninePatchLineWidth);
-        //Bottom
-        this.ctx.clearRect(0, height - ninePatchLineWidth, width, ninePatchLineWidth);
-        //Left
-        this.ctx.clearRect(0, 0, ninePatchLineWidth, height);
-        //Right
-        this.ctx.clearRect(width - ninePatchLineWidth, 0, ninePatchLineWidth, height);
+        //Set canvas size to calculated size
+        canvas.width = boundPos.canvasWidth;
+        canvas.height = boundPos.canvasHeight;
 
-        this.ctx.strokeStyle = "black";
-        this.ctx.lineWidth = ninePatchLineWidth * 2;
+        ctx.save();
+        ctx.fillStyle = backgroundFillColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
 
-        this.ctx.beginPath();
+        drawShadowInternal(w, h, radius, false, true);
 
-        //Draw left
-        s = h / 2;
-        this.ctx.moveTo(0, Math.round(offsetY + s - NINE_PATCH_SIZING_WIDTH / 2));
-        this.ctx.lineTo(0, Math.round(offsetY + s + NINE_PATCH_SIZING_WIDTH));
+        drawNinepatchLines(w, h, paddingValues);
 
-        //Draw top
-        s = w / 2;
-        this.ctx.moveTo(Math.round(offsetX + s - NINE_PATCH_SIZING_WIDTH / 2), 0);
-        this.ctx.lineTo(Math.round(offsetX + s + NINE_PATCH_SIZING_WIDTH), 0);
 
-        //Draw right
-        this.ctx.moveTo(Math.round(width), Math.round(offsetY + (h)));
-        this.ctx.lineTo(Math.round(width), Math.round(offsetY + h - (h - ninePatchLineWidth)));
-
-        //Draw bottom
-        this.ctx.moveTo(Math.round(offsetX + (w)), Math.round(height));
-        this.ctx.lineTo(Math.round(offsetX + w - (w)), Math.round(height));
-
-        this.ctx.closePath();
-        this.ctx.stroke();
-
-        //Clear right top corner
-        this.ctx.clearRect(width - ninePatchLineWidth, 0, ninePatchLineWidth, ninePatchLineWidth);
-        //Clear right bottom corner
-        this.ctx.clearRect(width - ninePatchLineWidth, height - ninePatchLineWidth, ninePatchLineWidth, ninePatchLineWidth);
-        //Clear left bottom corner
-        this.ctx.clearRect(0, height - ninePatchLineWidth, ninePatchLineWidth, ninePatchLineWidth);
+        if (showContentArea) {
+            drawContentArea(w, h, paddingValues);
+        }
     }
 
-    updateBounds() {
-        const {
-            paddingLeft = 0,
-            paddingRight = 0,
-            paddingTop = 0,
-            paddingBottom = 0,
-            roundLeftTop = 0,
-            roundRightTop = 0,
-            roundLeftBottom = 0,
-            roundRightBottom = 0
-        } = this.input;
-        const w = this.objectWidth;
-        const h = this.objectHeight;
-        this.boundPos.leftPos = this.boundPos.topPos = Number.MAX_VALUE;
-        this.boundPos.rightPos = this.boundPos.bottomPos = -1;
+    function drawContentArea(w, h, paddingValues) {
+        w -= outlineWidth;
+        h -= outlineWidth;
+        ctx.fillStyle = CONTENT_AREA_COLOR;
+        let outlineHalf = Math.round(outlineWidth / 2);
+        let x = getRelativeX() + outlineHalf;
+        let y = getRelativeY() + outlineHalf;
+        let xPad = paddingValues.horizontalLeft * w;
+        let yPad = paddingValues.verticalTop * h;
+        ctx.fillRect(x + xPad, y + yPad,
+            w - (w * paddingValues.horizontalRight) - xPad, h - (h * paddingValues.verticalBottom) - yPad);
+    }
 
-        const imgData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        const imageWidth = imgData.width;
-        const imageHeight = imgData.height;
-        const imageData = imgData.data;
+    function drawShadowInternal(w, h, radius, center, translate) {
+        let centerPosX = Math.round((canvas.width / 2) - (w / 2));
+        let centerPosY = Math.round((canvas.height / 2) - (h / 2));
+        let x = 0, y = 0;
+        let offsetForTransparent = -9999;
+
+        ctx.save();
+        if (isTransparentFill) ctx.translate(offsetForTransparent, offsetForTransparent);
+
+        if (center) {
+            x = centerPosX;
+            y = centerPosY;
+        } else if (translate) {
+            x = getRelativeX();
+            y = getRelativeY();
+        }
+        if (boxResizeMode !== BOX_RESIZE_TYPE.None) {
+            x -= shadowOffsetX;
+            y -= shadowOffsetY;
+        }
+        roundRect(ctx, x, y, w, h, radius);
+
+        if (!isTransparentFill) {
+            setShadow(shadowOffsetX, shadowOffsetY, shadowBlur, shadowColor);
+        } else {
+            setShadow(shadowOffsetX - offsetForTransparent, shadowOffsetY - offsetForTransparent, shadowBlur, shadowColor);
+        }
+
+        ctx.fill();
+
+        if (!isTransparentFill && outlineWidth > 0) {
+            setShadow(0, 0, 0, 0);
+            ctx.strokeStyle = outlineColor;
+            ctx.lineWidth = outlineWidth;
+            ctx.stroke();
+        }
+
+        ctx.restore();
+
+        ctx.save();
+
+        ctx.globalCompositeOperation = 'destination-out';
+        if (center) {
+            x = centerPosX;
+            y = centerPosY;
+        } else if (translate) {
+            x = getRelativeX();
+            y = getRelativeY();
+        }
+        if (boxResizeMode !== BOX_RESIZE_TYPE.None) {
+            x -= shadowOffsetX;
+            y -= shadowOffsetY;
+        }
+        roundRect(ctx, x, y, w, h, radius);
+        ctx.fill();
+        ctx.restore();
+
+        if (!isTransparentFill) {
+            ctx.save();
+            ctx.fillStyle = fillColor;
+            roundRect(ctx, x, y, w, h, radius);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function getRelativeX() {
+        return Math.round((CANVAS_MAX_WIDTH / 2) - (objectWidth / 2) - boundPos.leftPos);
+    }
+
+    function getRelativeY() {
+        return Math.round((CANVAS_MAX_HEIGHT / 2) - (objectHeight / 2) - boundPos.topPos);
+    }
+
+    function updateBounds(w, h) {
+        boundPos.leftPos = boundPos.topPos = Number.MAX_VALUE;
+        boundPos.rightPos = boundPos.bottomPos = -1;
+
+        let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let imageWidth = imgData.width;
+        let imageHeight = imgData.height;
+        let imageData = imgData.data;
 
         //Iterate through all pixels in image
         //used to get image bounds (where shadow ends)
@@ -199,231 +218,202 @@ class DrawingTask {
                 let x = (i / 4) % imageWidth;
                 let y = Math.floor((i / 4) / imageWidth);
 
-                if (x < this.boundPos.leftPos) {
-                    this.boundPos.leftPos = x;
-                } else if (x > this.boundPos.rightPos) {
-                    this.boundPos.rightPos = x;
+                if (x < boundPos.leftPos) {
+                    boundPos.leftPos = x;
+                } else if (x > boundPos.rightPos) {
+                    boundPos.rightPos = x;
                 }
 
-                if (y < this.boundPos.topPos) {
-                    this.boundPos.topPos = y;
-                } else if (y > this.boundPos.bottomPos) {
-                    this.boundPos.bottomPos = y;
+                if (y < boundPos.topPos) {
+                    boundPos.topPos = y;
+                } else if (y > boundPos.bottomPos) {
+                    boundPos.bottomPos = y;
                 }
             }
         }
 
-        let actualWidth = this.boundPos.rightPos - this.boundPos.leftPos;
-        let actualHeight = this.boundPos.bottomPos - this.boundPos.topPos;
-        let actualPaddingTop = imageHeight / 2 - h / 2 - this.boundPos.topPos;
-        let actualPaddingBottom = this.boundPos.bottomPos - (imageHeight / 2 + h / 2);
-        let actualPaddingLeft = imageWidth / 2 - w / 2 - this.boundPos.leftPos;
-        let actualPaddingRight = this.boundPos.rightPos - (imageWidth / 2 + w / 2);
+        let actualWidth = boundPos.rightPos - boundPos.leftPos;
+        let actualHeight = boundPos.bottomPos - boundPos.topPos;
+        let actualPaddingTop = imageHeight / 2 - h / 2 - boundPos.topPos;
+        let actualPaddingBottom = boundPos.bottomPos - (imageHeight / 2 + h / 2);
+        let actualPaddingLeft = imageWidth / 2 - w / 2 - boundPos.leftPos;
+        let actualPaddingRight = boundPos.rightPos - (imageWidth / 2 + w / 2);
 
         let msg = ['actual size: [', actualWidth, actualHeight, ']',
             ' shadow [', actualPaddingTop, actualPaddingRight, actualPaddingBottom, actualPaddingLeft, ']'].join(' ');
         //show the actual size
-        console.log(msg);
-
-        this.margin = [actualPaddingLeft, actualPaddingTop, actualPaddingRight, actualPaddingBottom];
+        $('#actual-padding').html(msg);
 
         //change to desire bounds
         if (paddingLeft !== 0) {
-            this.boundPos.leftPos = (imageWidth - w) / 2 - paddingLeft;
+            boundPos.leftPos = (imageWidth - w) / 2 - paddingLeft;
         }
         if (paddingRight !== 0) {
-            this.boundPos.rightPos = imageWidth / 2 + w / 2 + paddingRight;
+            boundPos.rightPos = imageWidth / 2 + w / 2 + paddingRight;
         }
         if (paddingTop !== 0) {
-            this.boundPos.topPos = (imageHeight - h) / 2 - paddingTop;
+            boundPos.topPos = (imageHeight - h) / 2 - paddingTop;
         }
         if (paddingBottom !== 0) {
-            this.boundPos.bottomPos = imageHeight / 2 + h / 2 + paddingBottom;
+            boundPos.bottomPos = imageHeight / 2 + h / 2 + paddingBottom;
         }
 
-        this.boundPos.leftPos = this.boundPos.leftPos - 1;
-        this.boundPos.topPos = this.boundPos.topPos - 1;
-        this.boundPos.rightPos = imageWidth - this.boundPos.rightPos - 2;
-        this.boundPos.bottomPos = imageHeight - this.boundPos.bottomPos - 2;
+        boundPos.leftPos = boundPos.leftPos - 1;
+        boundPos.topPos = boundPos.topPos - 1;
+        boundPos.rightPos = imageWidth - boundPos.rightPos - 2;
+        boundPos.bottomPos = imageHeight - boundPos.bottomPos - 2;
 
         //Calculate final canvas width and height
-        this.boundPos.canvasWidth = Math.round(this.canvas.width - (this.boundPos.leftPos + this.boundPos.rightPos));
-        this.boundPos.canvasHeight = Math.round(this.canvas.height - (this.boundPos.topPos + this.boundPos.bottomPos));
+        boundPos.canvasWidth = Math.round(canvas.width - (boundPos.leftPos + boundPos.rightPos));
+        boundPos.canvasHeight = Math.round(canvas.height - (boundPos.topPos + boundPos.bottomPos));
 
         //Add clipping If set
-        let clipLeft = this.getRelativeX() + roundLeftBottom;
-        let clipTop = this.getRelativeY() + roundLeftTop;
-        let clipRight = this.boundPos.canvasWidth - this.objectWidth - this.getRelativeX() + roundRightBottom;
-        let clipBottom = this.boundPos.canvasHeight - this.objectHeight - this.getRelativeY() + roundRightTop;
+        let clipLeft = clipSide.left ? getRelativeX() + roundRadius.lowerLeft : 0;
+        let clipTop = clipSide.top ? getRelativeY() + roundRadius.upperLeft : 0;
+        let clipRight = clipSide.right ? boundPos.canvasWidth - objectWidth - getRelativeX() + roundRadius.lowerRight : 0;
+        let clipBottom = clipSide.bottom ? boundPos.canvasHeight - objectHeight - getRelativeY() + roundRadius.upperRight : 0;
 
-        this.boundPos.leftPos += clipLeft;
-        this.boundPos.topPos += clipTop;
-        this.boundPos.rightPos += clipRight;
-        this.boundPos.bottomPos += clipBottom;
+        boundPos.leftPos += clipLeft;
+        boundPos.topPos += clipTop;
+        boundPos.rightPos += clipRight;
+        boundPos.bottomPos += clipBottom;
 
-        this.boundPos.clipLeft = clipLeft;
+        boundPos.clipLeft = clipLeft;
 
-        this.boundPos.canvasWidth -= clipLeft + clipRight;
-        this.boundPos.canvasHeight -= clipBottom + clipTop;
-
-        console.log("boundPos", this.boundPos);
+        boundPos.canvasWidth -= clipLeft + clipRight;
+        boundPos.canvasHeight -= clipBottom + clipTop;
     }
 
-    setShadow(shadowDx, shadowDy, shadowBlur, shadowColor) {
-        this.ctx.shadowOffsetX = shadowDx;
-        this.ctx.shadowOffsetY = shadowDy;
-        this.ctx.shadowBlur = shadowBlur;
-        this.ctx.shadowColor = toColorText(shadowColor);
-        console.log("setShadow", shadowDx, shadowDy, shadowBlur, toColorText(shadowColor));
-    }
+    function getPaddingValues() {
+        let rightPad = $('#padding-right').slider("getValue");
+        let bottomPad = $('#padding-bottom').slider("getValue");
+        let rightTop = (rightPad[0] / 100);
+        let rightBottom = ((100 - rightPad[1]) / 100);
+        let bottomLeft = (bottomPad[0] / 100);
+        let bottomRight = ((100 - bottomPad[1]) / 100);
 
-    drawShadowInternal(center, translate) {
-        const {
-            shadowBlur,
-            shadowColor,
-            shadowDx,
-            shadowDy,
-            fillColor,
-            outlineColor,
-            outlineWidth
-        } = this.input;
-        const w = this.objectWidth;
-        const h = this.objectHeight;
-        const centerPosX = Math.round((this.canvas.width / 2) - (w / 2));
-        const centerPosY = Math.round((this.canvas.height / 2) - (h / 2));
-        let x, y;
-        this.ctx.save();
-        if (this.isTransparentFill) {
-            this.ctx.translate(OFFSET_FOR_TRANSPARENT, OFFSET_FOR_TRANSPARENT);
-        }
-        if (center) {
-            x = centerPosX;
-            y = centerPosY;
-        } else {
-            x = this.getRelativeX();
-            y = this.getRelativeY();
-        }
-        if (this.boxResizeMode !== BoxResizeType.None) {
-            x -= shadowDx;
-            y -= shadowDy;
-        }
-        this.roundRect(x, y);
-        if (!this.isTransparentFill) {
-            this.setShadow(shadowDx, shadowDy, shadowBlur, shadowColor);
-        } else {
-            this.setShadow(
-                shadowDx - OFFSET_FOR_TRANSPARENT,
-                shadowDy - OFFSET_FOR_TRANSPARENT,
-                shadowBlur,
-                shadowColor
-            );
-        }
-        this.ctx.fill();
-        if (!this.isTransparentFill && outlineWidth > 0) {
-            this.setShadow(0, 0, 0, 0);
-            this.ctx.strokeStyle = outlineColor;
-            this.ctx.lineWidth = outlineWidth;
-            this.ctx.stroke();
-        }
-        this.ctx.restore();
-
-        this.ctx.save();
-        this.ctx.globalCompositeOperation = 'destination-out';
-        if (center) {
-            x = centerPosX;
-            y = centerPosY;
-        } else if (translate) {
-            x = this.getRelativeX();
-            y = this.getRelativeY();
-        }
-        if (this.boxResizeMode !== BoxResizeType.None) {
-            x -= shadowDx;
-            y -= shadowDy;
-        }
-        this.roundRect(x, y);
-        this.ctx.fill();
-        this.ctx.restore();
-
-        if (!this.isTransparentFill) {
-            this.ctx.save();
-            this.ctx.fillStyle = fillColor;
-            this.roundRect(x, y);
-            this.ctx.fill();
-            this.ctx.restore();
-        }
-    }
-
-    preDraw() {
-        this.canvas.width = CANVAS_MAX_WIDTH;
-        this.canvas.height = CANVAS_MAX_HEIGHT;
-        const isTransparentFillTemp = this.isTransparentFill;
-        this.isTransparentFill = false;
-        this.drawShadowInternal(true);
-        this.updateBounds();
-        this.isTransparentFill = isTransparentFillTemp;
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-
-    roundRect(x, y) {
-        const {
-            roundLeftTop,
-            roundRightTop,
-            roundLeftBottom,
-            roundRightBottom
-        } = this.input;
-        const w = this.objectWidth;
-        const h = this.objectHeight;
-        this.ctx.beginPath();
-        this.ctx.moveTo(x + roundLeftTop, y);
-        this.ctx.lineTo(x + w - roundRightTop, y);
-        this.ctx.quadraticCurveTo(x + w, y, x + w, y + roundRightTop);
-        this.ctx.lineTo(x + w, y + h - roundRightBottom);
-        this.ctx.quadraticCurveTo(x + w, y + h, x + w - roundRightBottom, y + h);
-        this.ctx.lineTo(x + roundLeftBottom, y + h);
-        this.ctx.quadraticCurveTo(x, y + h, x, y + h - roundLeftBottom);
-        this.ctx.lineTo(x, y + roundLeftTop);
-        this.ctx.quadraticCurveTo(x, y, x + roundLeftTop, y);
-        this.ctx.closePath();
-    }
-
-    createResponse() {
-        let base64;
-        // noinspection JSUnresolvedVariable
-        if (this.canvas.toDataURLHD) {
-            base64 = this.canvas.toDataURLHD()
-        } else {
-            base64 = this.canvas.toDataURL()
-        }
-        console.log(this.canvas);
         return {
-            margin: this.margin,
-            imageData: base64
+            verticalTop: rightTop, verticalBottom: rightBottom,
+            horizontalLeft: bottomLeft, horizontalRight: bottomRight
         };
     }
-}
 
-function createNinePatch(input) {
-    try {
-        return JSON.stringify(new DrawingTask(JSON.parse(input)).execute());
-    } catch (e) {
-        return JSON.stringify({error: e.message});
+    function drawNinepatchLines(w, h, paddingValues) {
+        if (hideNinepatches) {
+            return;
+        }
+
+        let s = 0;
+        let offsetX = getRelativeX();
+        let offsetY = getRelativeY();
+        let ninepatchLineWidth = 1;
+        let width = canvas.width;
+        let height = canvas.height;
+
+        //Subtract outline width from content padding
+        if (!isTransparentFill) {
+            let outlineHalf = Math.round(outlineWidth / 2);
+            w -= outlineWidth;
+            h -= outlineWidth;
+            offsetX += outlineHalf;
+            offsetY += outlineHalf;
+        }
+
+        //Clear 1px frame around image for ninepatch pixels
+        //Top
+        ctx.clearRect(0, 0, width, ninepatchLineWidth);
+        //Bottom
+        ctx.clearRect(0, height - ninepatchLineWidth, width, ninepatchLineWidth);
+        //Left
+        ctx.clearRect(0, 0, ninepatchLineWidth, height);
+        //Right
+        ctx.clearRect(width - ninepatchLineWidth, 0, ninepatchLineWidth, height);
+
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = ninepatchLineWidth * 2;
+
+        ctx.beginPath();
+
+        //Draw left
+        s = h / 2;
+        ctx.moveTo(0, Math.round(offsetY + s - NINEPATCH_SIZING_WIDTH / 2));
+        ctx.lineTo(0, Math.round(offsetY + s + NINEPATCH_SIZING_WIDTH));
+
+        //Draw top
+        s = w / 2;
+        ctx.moveTo(Math.round(offsetX + s - NINEPATCH_SIZING_WIDTH / 2), 0);
+        ctx.lineTo(Math.round(offsetX + s + NINEPATCH_SIZING_WIDTH), 0);
+
+        //Draw right
+        ctx.moveTo(Math.round(width), Math.round(offsetY + (h * paddingValues.verticalTop)));
+        ctx.lineTo(Math.round(width), Math.round(offsetY + h - (h * paddingValues.verticalBottom - ninepatchLineWidth)));
+
+        //Draw bottom
+        ctx.moveTo(Math.round(offsetX + (w * paddingValues.horizontalLeft)), Math.round(height));
+        ctx.lineTo(Math.round(offsetX + w - (w * paddingValues.horizontalRight)), Math.round(height));
+
+        ctx.closePath();
+        ctx.stroke();
+
+        //Clear right top corner
+        ctx.clearRect(width - ninepatchLineWidth, 0, ninepatchLineWidth, ninepatchLineWidth);
+        //Clear right bottom corner
+        ctx.clearRect(width - ninepatchLineWidth, height - ninepatchLineWidth, ninepatchLineWidth, ninepatchLineWidth);
+        //Clear left bottom corner
+        ctx.clearRect(0, height - ninepatchLineWidth, ninepatchLineWidth, ninepatchLineWidth);
     }
+
+    function redraw(fast) {
+        let {} = JSON.parse(input);
+        //Limit ranges for input
+        let minRadius = 0, maxRadius = 500;
+        let minOffset = -500, maxOffset = 500;
+        let minBlur = 0, maxBlur = 500;
+        let minOutlineW = 0, maxOutlineW = 99;
+
+        let colorFill = $("#color-picker-fill-input");
+        let backgroundColorFill = $("#color-picker-background-fill-input");
+        let outlineFill = $("#color-picker-outline-input");
+        let colorShadow = $("#color-picker-shadow-input");
+
+        shadowBlur = parseFloatAndClamp($("#shadow-blur").val(), minBlur, maxBlur);
+        shadowOffsetX = parseFloatAndClamp($("#shadow-offset-x").val(), minOffset, maxOffset, 0);
+        shadowOffsetY = parseFloatAndClamp($("#shadow-offset-y").val(), minOffset, maxOffset, 0);
+        outlineWidth = parseFloatAndClamp($("#outline-width-input").val(), minOutlineW, maxOutlineW);
+        isTransparentFill = colorFill.prop("disabled");
+
+        shadowColor = colorShadow.val();
+        fillColor = colorFill.val();
+        backgroundFillColor = backgroundColorFill.val();
+        outlineColor = outlineFill.val();
+
+        roundRadius = {
+            upperLeft: parseFloatAndClamp($("#shadow-round-tl").val(), minRadius, maxRadius),
+            upperRight: parseFloatAndClamp($("#shadow-round-tr").val(), minRadius, maxRadius),
+            lowerLeft: parseFloatAndClamp($("#shadow-round-bl").val(), minRadius, maxRadius),
+            lowerRight: parseFloatAndClamp($("#shadow-round-br").val(), minRadius, maxRadius)
+        };
+
+        paddingTop = parseFloatAndClamp($('#padding-top-line').val(), 0, CANVAS_MAX_WIDTH, 0);
+        paddingBottom = parseFloatAndClamp($('#padding-bottom-line').val(), 0, CANVAS_MAX_WIDTH, 0);
+        paddingLeft = parseFloatAndClamp($('#padding-left-line').val(), 0, CANVAS_MAX_WIDTH, 0);
+        paddingRight = parseFloatAndClamp($('#padding-right-line').val(), 0, CANVAS_MAX_WIDTH, 0);
+
+        drawShadow(objectWidth, objectHeight, roundRadius, fast);
+    }
+
+    function parseFloatAndClamp(val, min, max, noneValue) {
+        let num = parseFloat(val);
+        if (isNaN(num)) {
+            return (typeof noneValue !== "undefined") ? noneValue : min;
+        } else {
+            return Math.min(Math.max(min, val), max);
+        }
+    }
+
+    redraw();
+
+    return exportAsDataURL()
 }
 
 global.createNinePatch = createNinePatch;
-
-const source = JSON.parse(createNinePatch(JSON.stringify({
-    roundLeftTop: 100,
-    roundRightTop: 100,
-    roundLeftBottom: 100,
-    roundRightBottom: 100,
-    shadowColor: 'rgba(90,90,90,0.28)',
-    shadowBlur: 12
-})));
-
-const img = document.createElement('img');
-
-img.src = source.imageData;
-img.width = 417;
-img.height = 417;
-document.documentElement.appendChild(img);
