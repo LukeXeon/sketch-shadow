@@ -12,7 +12,6 @@ import android.webkit.WebView
 import proguard.annotation.Keep as ProguardKeep
 import androidx.annotation.Keep as AndroidXKeep
 import java.util.*
-import java.util.concurrent.atomic.AtomicReference
 
 private val FLAG_CLIP_TO_PADDING by lazy {
     ViewGroup::class.java.getDeclaredField("FLAG_CLIP_TO_PADDING")
