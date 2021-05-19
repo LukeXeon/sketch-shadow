@@ -104,10 +104,6 @@ internal fun WebView.evaluateJavascriptCompat(
 
                 private var output: String? = null
 
-                init {
-                    addJavascriptInterface(this, id)
-                }
-
                 @JavascriptInterface
                 fun onResponse(output: String?) {
                     this.output = output
@@ -115,6 +111,7 @@ internal fun WebView.evaluateJavascriptCompat(
                 }
 
                 fun wrapScript(script: String): String {
+                    addJavascriptInterface(this, id)
                     return """javascript:(function(){
                         try {
                             var result = $script
