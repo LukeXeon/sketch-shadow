@@ -43,7 +43,7 @@ private fun ViewGroup.hasBooleanFlag(flag: Int): Boolean {
     return mGroupFlags and flag == flag
 }
 
-internal var ViewGroup.clipChildrenCompat: Boolean
+var ViewGroup.clipChildrenCompat: Boolean
     get() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             this.clipChildren
@@ -56,7 +56,7 @@ internal var ViewGroup.clipChildrenCompat: Boolean
     }
 
 
-internal var View.clipToOutlineCompat: Boolean
+var View.clipToOutlineCompat: Boolean
     get() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             this.clipToOutline
@@ -70,7 +70,7 @@ internal var View.clipToOutlineCompat: Boolean
         }
     }
 
-internal var ViewGroup.clipToPaddingCompat: Boolean
+var ViewGroup.clipToPaddingCompat: Boolean
     get() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             this.clipToPadding
@@ -83,7 +83,7 @@ internal var ViewGroup.clipToPaddingCompat: Boolean
     }
 
 @SuppressLint("JavascriptInterface", "AddJavascriptInterface")
-internal fun WebView.evaluateJavascriptCompat(
+fun WebView.evaluateJavascriptCompat(
     script: String,
     callback: ValueCallback<String>? = null
 ) {
@@ -98,8 +98,9 @@ internal fun WebView.evaluateJavascriptCompat(
             @ProguardKeep
             class CallbackWrapper : Runnable {
 
-                private val id: String = "evaluateJavascript_callback_" + UUID.randomUUID().toString()
-                    .replace("-", "")
+                private val id: String =
+                    "evaluateJavascript_callback_" + UUID.randomUUID().toString()
+                        .replace("-", "")
 
                 private var output: String? = null
 
