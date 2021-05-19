@@ -99,7 +99,7 @@ internal fun WebView.evaluateJavascriptCompat(
             @ProguardKeep
             class CallbackWrapper : Runnable {
 
-                val id: String = "evaluateJavascript_callback_" + UUID.randomUUID().toString()
+                private val id: String = "evaluateJavascript_callback_" + UUID.randomUUID().toString()
                     .replace("-", "")
 
                 private var output: String? = null
