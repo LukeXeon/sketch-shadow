@@ -12,6 +12,7 @@ import android.webkit.WebView
 import proguard.annotation.Keep as ProguardKeep
 import androidx.annotation.Keep as AndroidXKeep
 import java.util.*
+import java.util.concurrent.atomic.AtomicReference
 
 private val FLAG_CLIP_TO_PADDING by lazy {
     ViewGroup::class.java.getDeclaredField("FLAG_CLIP_TO_PADDING")
@@ -90,46 +91,52 @@ internal fun WebView.evaluateJavascriptCompat(
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
         evaluateJavascript(script, callback)
     } else {
-        val internalScript0 = """(function(){$script})();""".trimIndent()
+        val internalScript = """(function(){$script})();""".trimIndent()
         if (callback == null) {
-            loadUrl(internalScript0)
+            loadUrl(internalScript)
         } else {
-            val internalCallback = @AndroidXKeep @ProguardKeep object : Any() {
+            @AndroidXKeep
+            @ProguardKeep
+            class CallbackWrapper : Runnable {
 
-                val id: String by lazy {
-                    "evaluateJavascript_callback_" + UUID.randomUUID().toString()
-                        .replace("-", "")
+                val id: String = "evaluateJavascript_callback_" + UUID.randomUUID().toString()
+                    .replace("-", "")
+
+                private var output: String? = null
+
+                init {
+                    addJavascriptInterface(this, id)
                 }
 
                 @JavascriptInterface
-                fun onResponse(output: String) {
-                    post {
-                        removeJavascriptInterface(id)
-                        callback.onReceiveValue(output)
-                    }
+                fun onResponse(output: String?) {
+                    this.output = output
+                    post(this)
                 }
 
-                @JavascriptInterface
-                fun onFallback() {
-                    post {
-                        removeJavascriptInterface(id)
-                    }
-                }
-            }
-            addJavascriptInterface(internalCallback, internalCallback.id)
-            val internalScript1 = """javascript:(function(){
+                fun wrapScript(script: String): String {
+                    return """javascript:(function(){
                         try {
-                            var result = $internalScript0
-                            if (typeof ${internalCallback.id} !== "undefined") {
-                                ${internalCallback.id}.onResponse(result);
+                            var result = $script
+                            if (typeof $id !== "undefined") {
+                                $id.onResponse(result);
                             }
                         } catch (e) {
-                            if (typeof ${internalCallback.id} !== "undefined") {
-                                ${internalCallback.id}.onFallback();
+                            if (typeof $id !== "undefined") {
+                                $id.onResponse(null);
                             }
                         }
                 })();""".trimIndent()
-            loadUrl(internalScript1)
+                }
+
+                override fun run() {
+                    removeJavascriptInterface(id)
+                    callback.onReceiveValue(output)
+                }
+            }
+
+            val internalCallback = CallbackWrapper()
+            loadUrl(internalCallback.wrapScript(internalScript))
         }
     }
 }
