@@ -1,12 +1,10 @@
-function createNinePatch(input) {
+function createNinePatch(args) {
     let canvas = document.createElement("canvas");
     let ctx = canvas.getContext("2d");
 
     let BOX_RESIZE_TYPE = {None: 0, Right: 1, Bottom: 2, Corner: 3};
 
-    let boundPos = {
-        leftPos: -1, topPos: -1, rightPos: -1, bottomPos: -1, canvasWidth: -1, canvasHeight: -1, clipLeft: -1
-    };
+    let boundPos = {leftPos: -1, topPos: -1, rightPos: -1, bottomPos: -1, canvasWidth: -1, canvasHeight: -1};
     let clipSide = {left: false, top: false, right: false, bottom: false};
     let shadowColor, fillColor, backgroundFillColor, outlineColor, shadowBlur, shadowOffsetX, shadowOffsetY,
         outlineWidth, isTransparentFill, roundRadius, hideNinepatches,
@@ -26,16 +24,16 @@ function createNinePatch(input) {
     let NINEPATCH_SIZING_WIDTH = 4;
 
     function toColorText(color) {
-        if (color instanceof Number) {
+        if (color instanceof Number || typeof color === "number") {
             const alpha = color >> 24 & 0xff;
             const red = color >> 16 & 0xff;
             const green = color >> 8 & 0xff;
             const blue = color & 0xff;
             return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-        } else if (color instanceof String) {
+        } else if (color instanceof String || typeof color === 'string') {
             return color;
         } else {
-            return undefined
+            return 'rgba(0,0,0,0)';
         }
     }
 
@@ -43,7 +41,7 @@ function createNinePatch(input) {
         let cornerRadius = {upperLeft: 0, upperRight: 0, lowerLeft: 0, lowerRight: 0};
 
         if (typeof radius === "object") {
-            for (let side of radius) {
+            for (let side of Object.keys(radius)) {
                 cornerRadius[side] = radius[side];
             }
         }
@@ -280,16 +278,14 @@ function createNinePatch(input) {
         boundPos.rightPos += clipRight;
         boundPos.bottomPos += clipBottom;
 
-        boundPos.clipLeft = clipLeft;
-
         boundPos.canvasWidth -= clipLeft + clipRight;
         boundPos.canvasHeight -= clipBottom + clipTop;
     }
 
     function getPaddingValues() {
-        let input = JSON.parse(input);
-        let rightPad = input['rightPad'] || [100, 100];
-        let bottomPad = input['bottomPad'] || [100, 100];
+        let input = JSON.parse(args);
+        let rightPad = input['rightPad'] || [0, 100];
+        let bottomPad = input['bottomPad'] || [0, 100];
         let rightTop = (rightPad[0] / 100);
         let rightBottom = ((100 - rightPad[1]) / 100);
         let bottomLeft = (bottomPad[0] / 100);
@@ -367,7 +363,7 @@ function createNinePatch(input) {
     }
 
     function redraw(fast) {
-        let input = JSON.parse(input);
+        let input = JSON.parse(args);
         //Limit ranges for input
         let minRadius = 0, maxRadius = 500;
         let minOffset = -500, maxOffset = 500;

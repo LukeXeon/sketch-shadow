@@ -1,4 +1,4 @@
-package moe.luke.shadow
+package org.gcta.shadow
 
 import android.graphics.Color
 import androidx.annotation.ColorInt

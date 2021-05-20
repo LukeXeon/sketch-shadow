@@ -1,4 +1,4 @@
-package moe.luke.shadow
+package org.gcta.shadow
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

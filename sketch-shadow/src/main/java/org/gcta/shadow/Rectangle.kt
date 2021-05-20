@@ -1,4 +1,4 @@
-package moe.luke.shadow
+package org.gcta.shadow
 
 internal class Rectangle(
     @JvmField

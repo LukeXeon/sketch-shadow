@@ -1,6 +1,6 @@
 @file:JvmName("ViewCompat")
 
-package moe.luke.shadow
+package org.gcta.shadow
 
 import android.annotation.SuppressLint
 import android.os.Build
