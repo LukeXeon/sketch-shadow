@@ -2,10 +2,12 @@ package moe.luke.shadow
 
 import android.graphics.Color
 import androidx.annotation.ColorInt
-import androidx.annotation.Keep
 import androidx.annotation.Px
+import proguard.annotation.Keep as ProguardKeep
+import androidx.annotation.Keep as AndroidXKeep
 
-@Keep
+@ProguardKeep
+@AndroidXKeep
 data class ShadowOptions(
     @Px
     var roundLeftTop: Int = 12,

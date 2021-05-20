@@ -18,21 +18,24 @@ function createNinePatch(input) {
     let paddingRight = 0;
     let paddingTop = 0;
     let paddingBottom = 0;
+    let margin = [];
 
     let CANVAS_MIN_WIDTH = 10, CANVAS_MIN_HEIGHT = 10;
     let CANVAS_MAX_WIDTH = 500, CANVAS_MAX_HEIGHT = 500;
     let CONTENT_AREA_COLOR = "rgba(53, 67, 172, 0.6)";
     let NINEPATCH_SIZING_WIDTH = 4;
 
-    function toColorText(number) {
-        if (number instanceof Number) {
-            const alpha = number >> 24 & 0xff;
-            const red = number >> 16 & 0xff;
-            const green = number >> 8 & 0xff;
-            const blue = number & 0xff;
+    function toColorText(color) {
+        if (color instanceof Number) {
+            const alpha = color >> 24 & 0xff;
+            const red = color >> 16 & 0xff;
+            const green = color >> 8 & 0xff;
+            const blue = color & 0xff;
             return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+        } else if (color instanceof String) {
+            return color;
         } else {
-            return number;
+            return undefined
         }
     }
 
@@ -241,9 +244,8 @@ function createNinePatch(input) {
 
         let msg = ['actual size: [', actualWidth, actualHeight, ']',
             ' shadow [', actualPaddingTop, actualPaddingRight, actualPaddingBottom, actualPaddingLeft, ']'].join(' ');
-        //show the actual size
-        $('#actual-padding').html(msg);
-
+        console.log(msg);
+        margin = [actualPaddingLeft, actualPaddingTop, actualPaddingRight, actualPaddingBottom];
         //change to desire bounds
         if (paddingLeft !== 0) {
             boundPos.leftPos = (imageWidth - w) / 2 - paddingLeft;
@@ -285,8 +287,9 @@ function createNinePatch(input) {
     }
 
     function getPaddingValues() {
-        let rightPad = $('#padding-right').slider("getValue");
-        let bottomPad = $('#padding-bottom').slider("getValue");
+        let input = JSON.parse(input);
+        let rightPad = input['rightPad'] || [100, 100];
+        let bottomPad = input['bottomPad'] || [100, 100];
         let rightTop = (rightPad[0] / 100);
         let rightBottom = ((100 - rightPad[1]) / 100);
         let bottomLeft = (bottomPad[0] / 100);
@@ -364,40 +367,36 @@ function createNinePatch(input) {
     }
 
     function redraw(fast) {
-        let {} = JSON.parse(input);
+        let input = JSON.parse(input);
         //Limit ranges for input
         let minRadius = 0, maxRadius = 500;
         let minOffset = -500, maxOffset = 500;
         let minBlur = 0, maxBlur = 500;
         let minOutlineW = 0, maxOutlineW = 99;
 
-        let colorFill = $("#color-picker-fill-input");
-        let backgroundColorFill = $("#color-picker-background-fill-input");
-        let outlineFill = $("#color-picker-outline-input");
-        let colorShadow = $("#color-picker-shadow-input");
+        shadowBlur = parseFloatAndClamp(input['shadowBlur'], minBlur, maxBlur);
+        shadowOffsetX = parseFloatAndClamp(input['shadowOffsetX'], minOffset, maxOffset, 0);
+        shadowOffsetY = parseFloatAndClamp(input['shadowOffsetY'], minOffset, maxOffset, 0);
+        outlineWidth = parseFloatAndClamp(input['outlineWidth'], minOutlineW, maxOutlineW);
 
-        shadowBlur = parseFloatAndClamp($("#shadow-blur").val(), minBlur, maxBlur);
-        shadowOffsetX = parseFloatAndClamp($("#shadow-offset-x").val(), minOffset, maxOffset, 0);
-        shadowOffsetY = parseFloatAndClamp($("#shadow-offset-y").val(), minOffset, maxOffset, 0);
-        outlineWidth = parseFloatAndClamp($("#outline-width-input").val(), minOutlineW, maxOutlineW);
-        isTransparentFill = colorFill.prop("disabled");
+        shadowColor = toColorText(input['shadowColor']);
+        fillColor = toColorText(input['fillColor']);
+        backgroundFillColor = toColorText(input['backgroundFillColor']);
+        outlineColor = toColorText(input['outlineColor']);
 
-        shadowColor = colorShadow.val();
-        fillColor = colorFill.val();
-        backgroundFillColor = backgroundColorFill.val();
-        outlineColor = outlineFill.val();
+        isTransparentFill = fillColor instanceof String && input['outlineColor'] !== 0;
 
         roundRadius = {
-            upperLeft: parseFloatAndClamp($("#shadow-round-tl").val(), minRadius, maxRadius),
-            upperRight: parseFloatAndClamp($("#shadow-round-tr").val(), minRadius, maxRadius),
-            lowerLeft: parseFloatAndClamp($("#shadow-round-bl").val(), minRadius, maxRadius),
-            lowerRight: parseFloatAndClamp($("#shadow-round-br").val(), minRadius, maxRadius)
+            upperLeft: parseFloatAndClamp(input['roundLeftTop'], minRadius, maxRadius),
+            upperRight: parseFloatAndClamp(input['roundRightTop'], minRadius, maxRadius),
+            lowerLeft: parseFloatAndClamp(input['roundLeftBottom'], minRadius, maxRadius),
+            lowerRight: parseFloatAndClamp(input['roundRightBottom'], minRadius, maxRadius)
         };
 
-        paddingTop = parseFloatAndClamp($('#padding-top-line').val(), 0, CANVAS_MAX_WIDTH, 0);
-        paddingBottom = parseFloatAndClamp($('#padding-bottom-line').val(), 0, CANVAS_MAX_WIDTH, 0);
-        paddingLeft = parseFloatAndClamp($('#padding-left-line').val(), 0, CANVAS_MAX_WIDTH, 0);
-        paddingRight = parseFloatAndClamp($('#padding-right-line').val(), 0, CANVAS_MAX_WIDTH, 0);
+        paddingTop = parseFloatAndClamp(input['paddingTop'], 0, CANVAS_MAX_WIDTH, 0);
+        paddingBottom = parseFloatAndClamp(input['paddingBottom'], 0, CANVAS_MAX_WIDTH, 0);
+        paddingLeft = parseFloatAndClamp(input['paddingLeft'], 0, CANVAS_MAX_WIDTH, 0);
+        paddingRight = parseFloatAndClamp(input['paddingRight'], 0, CANVAS_MAX_WIDTH, 0);
 
         drawShadow(objectWidth, objectHeight, roundRadius, fast);
     }
@@ -413,7 +412,10 @@ function createNinePatch(input) {
 
     redraw();
 
-    return exportAsDataURL()
+    return JSON.stringify({
+        margin,
+        imageData: exportAsDataURL()
+    });
 }
 
 global.createNinePatch = createNinePatch;
