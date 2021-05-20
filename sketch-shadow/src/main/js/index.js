@@ -371,8 +371,8 @@ function createNinePatch(args) {
         let minOutlineW = 0, maxOutlineW = 99;
 
         shadowBlur = parseFloatAndClamp(input['shadowBlur'], minBlur, maxBlur);
-        shadowOffsetX = parseFloatAndClamp(input['shadowOffsetX'], minOffset, maxOffset, 0);
-        shadowOffsetY = parseFloatAndClamp(input['shadowOffsetY'], minOffset, maxOffset, 0);
+        shadowOffsetX = parseFloatAndClamp(input['shadowDx'], minOffset, maxOffset, 0);
+        shadowOffsetY = parseFloatAndClamp(input['shadowDy'], minOffset, maxOffset, 0);
         outlineWidth = parseFloatAndClamp(input['outlineWidth'], minOutlineW, maxOutlineW);
 
         shadowColor = toColorText(input['shadowColor']);
@@ -380,7 +380,7 @@ function createNinePatch(args) {
         backgroundFillColor = toColorText(input['backgroundFillColor']);
         outlineColor = toColorText(input['outlineColor']);
 
-        isTransparentFill = fillColor instanceof String && input['outlineColor'] !== 0;
+        isTransparentFill = (fillColor instanceof String || typeof fillColor === 'string') && input['fillColor'] !== 0;
 
         roundRadius = {
             upperLeft: parseFloatAndClamp(input['roundLeftTop'], minRadius, maxRadius),
