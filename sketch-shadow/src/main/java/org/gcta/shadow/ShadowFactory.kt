@@ -70,14 +70,7 @@ private constructor(context: Context) {
                             margin.getInt(3)
                         ),
                         bitmap,
-                        chunk,
-                        NinePatchDrawable(
-                            webkit.resources,
-                            bitmap,
-                            chunk,
-                            null,
-                            null
-                        )
+                        chunk
                     )
                 }
             }

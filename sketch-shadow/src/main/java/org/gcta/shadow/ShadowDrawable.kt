@@ -13,9 +13,12 @@ import android.view.ViewGroup
 class ShadowDrawable internal constructor(
     private val margin: Rect,
     private val bitmap: Bitmap,
-    private val chunk: ByteArray,
-    private val ninePatchDrawable: NinePatchDrawable,
+    private val chunk: ByteArray
 ) : Drawable(), Drawable.Callback, Parcelable {
+
+    private val ninePatchDrawable by lazy {
+        NinePatchDrawable(Resources.getSystem(), bitmap, chunk, null, null)
+    }
 
     override fun draw(canvas: Canvas) {
         var callback = callback
@@ -100,12 +103,10 @@ class ShadowDrawable internal constructor(
     companion object CREATOR : Parcelable.Creator<ShadowDrawable> {
         override fun createFromParcel(parcel: Parcel): ShadowDrawable {
             val margin = requireNotNull(parcel.readParcelable<Rect>(Rect::class.java.classLoader))
-            val bitmap = requireNotNull(parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader))
+            val bitmap =
+                requireNotNull(parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader))
             val chunk = requireNotNull(parcel.createByteArray())
-            return ShadowDrawable(
-                margin, bitmap, chunk,
-                NinePatchDrawable(Resources.getSystem(), bitmap, chunk, null, null)
-            )
+            return ShadowDrawable(margin, bitmap, chunk)
         }
 
         override fun newArray(size: Int): Array<ShadowDrawable?> {
