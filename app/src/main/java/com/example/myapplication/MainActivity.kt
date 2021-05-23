@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.View
+import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -23,12 +24,15 @@ class MainActivity : Activity() {
                         20f,
                         resources.displayMetrics
                     ).toInt()
-                    setRoundRadius(TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        20f,
-                        resources.displayMetrics
-                    ).toInt())
+                    setRoundRadius(
+                        TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            20f,
+                            resources.displayMetrics
+                        ).toInt()
+                    )
                 })
+            Toast.makeText(application, "渲染完成", Toast.LENGTH_LONG).show()
         }
     }
 }
