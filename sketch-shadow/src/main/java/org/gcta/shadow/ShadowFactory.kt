@@ -39,19 +39,15 @@ class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) 
         private val application: Application
     ) : PhantomReference<ShadowFactory>(referent, q),
         Application.ActivityLifecycleCallbacks {
-        private var isReleased = false
 
         init {
             application.registerActivityLifecycleCallbacks(this)
         }
 
         fun onRelease() {
-            if (!isReleased) {
-                isReleased = true
-                application.unregisterActivityLifecycleCallbacks(this)
-                (webkit.parent as? ViewGroup)?.removeView(webkit)
-                Log.d(TAG, "clear $webkit")
-            }
+            application.unregisterActivityLifecycleCallbacks(this)
+            (webkit.parent as? ViewGroup)?.removeView(webkit)
+            Log.d(TAG, "clear $webkit")
         }
 
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
@@ -64,10 +60,8 @@ class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) 
 
         override fun onActivityResumed(activity: Activity) {
             val decorView = activity.window.decorView
-            if (!isReleased && decorView != webkit.rootView) {
-                (webkit.parent as? ViewGroup)?.removeView(webkit)
-                (decorView as ViewGroup).addView(webkit, 0, 0)
-            }
+            (webkit.parent as? ViewGroup)?.removeView(webkit)
+            (decorView as ViewGroup).addView(webkit, 0, 0)
         }
 
         override fun onActivityPaused(activity: Activity) {
