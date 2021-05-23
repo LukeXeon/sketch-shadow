@@ -47,7 +47,8 @@ class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) 
         fun onRelease() {
             application.unregisterActivityLifecycleCallbacks(this)
             (webkit.parent as? ViewGroup)?.removeView(webkit)
-            Log.d(TAG, "clear $webkit")
+            webkit.destroy()
+            Log.d(TAG, "released $webkit")
         }
 
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
