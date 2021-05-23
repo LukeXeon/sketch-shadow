@@ -17,7 +17,10 @@ class ShadowDrawable internal constructor(
 ) : Drawable(), Drawable.Callback, Parcelable {
 
     private val ninePatchDrawable by lazy {
-        NinePatchDrawable(Resources.getSystem(), bitmap, chunk, null, null)
+        NinePatchDrawable(Resources.getSystem(), bitmap, chunk, null, null).apply {
+            isFilterBitmap = true
+            paint.isAntiAlias = true
+        }
     }
 
     override fun draw(canvas: Canvas) {
