@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.util.Base64
 import android.util.Log
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.MainThread
@@ -43,7 +44,7 @@ private constructor(context: Context) {
         private suspend fun runTask(input: ShadowOptions): ShadowDrawable {
             val output = withContext(Dispatchers.Main) {
                 suspendCoroutine<String> { continuation ->
-                    webkit.evaluateJavascriptCompat("createNinePatch('${gson.toJson(input)}');") {
+                    webkit.evaluateJavascript("createNinePatch('${gson.toJson(input)}')") {
                         continuation.resume(it)
                     }
                 }
@@ -89,11 +90,12 @@ private constructor(context: Context) {
     }
 
     private val taskManager = TaskManager()
-    private val webkit = WebView(context.applicationContext)
+    private val webkit = AppCompatJsWebView(context.applicationContext)
 
     init {
         webkit.settings.javaScriptEnabled = true
         webkit.webViewClient = taskManager
+        webkit.webChromeClient = WebChromeClient()
         webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
     }
 

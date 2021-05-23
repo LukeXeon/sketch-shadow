@@ -2,16 +2,9 @@
 
 package org.gcta.shadow
 
-import android.annotation.SuppressLint
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.JavascriptInterface
-import android.webkit.ValueCallback
-import android.webkit.WebView
-import proguard.annotation.Keep as ProguardKeep
-import androidx.annotation.Keep as AndroidXKeep
-import java.util.*
 
 private val FLAG_CLIP_TO_PADDING by lazy {
     ViewGroup::class.java.getDeclaredField("FLAG_CLIP_TO_PADDING")
@@ -81,60 +74,4 @@ var ViewGroup.clipToPaddingCompat: Boolean
     set(value) {
         this.clipToPadding = value
     }
-
-@SuppressLint("JavascriptInterface", "AddJavascriptInterface")
-fun WebView.evaluateJavascriptCompat(
-    script: String,
-    callback: ValueCallback<String>? = null
-) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-        evaluateJavascript(script, callback)
-    } else {
-        val internalScript = """(function(){$script})();""".trimIndent()
-        if (callback == null) {
-            loadUrl(internalScript)
-        } else {
-            @AndroidXKeep
-            @ProguardKeep
-            class CallbackWrapper : Runnable {
-
-                private val id: String =
-                    "evaluateJavascript_callback_" + UUID.randomUUID().toString()
-                        .replace("-", "")
-
-                private var output: String? = null
-
-                @JavascriptInterface
-                fun onResponse(output: String?) {
-                    this.output = output
-                    post(this)
-                }
-
-                fun wrapScript(script: String): String {
-                    addJavascriptInterface(this, id)
-                    return """javascript:(function(){
-                        try {
-                            var result = $script
-                            if (typeof $id !== "undefined") {
-                                $id.onResponse(result);
-                            }
-                        } catch (e) {
-                            if (typeof $id !== "undefined") {
-                                $id.onResponse(null);
-                            }
-                        }
-                })();""".trimIndent()
-                }
-
-                override fun run() {
-                    removeJavascriptInterface(id)
-                    callback.onReceiveValue(output)
-                }
-            }
-
-            val internalCallback = CallbackWrapper()
-            loadUrl(internalCallback.wrapScript(internalScript))
-        }
-    }
-}
 
