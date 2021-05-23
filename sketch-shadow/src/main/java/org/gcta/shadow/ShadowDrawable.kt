@@ -102,9 +102,8 @@ class ShadowDrawable internal constructor(
 
     companion object CREATOR : Parcelable.Creator<ShadowDrawable> {
         override fun createFromParcel(parcel: Parcel): ShadowDrawable {
-            val margin = requireNotNull(parcel.readParcelable<Rect>(Rect::class.java.classLoader))
-            val bitmap =
-                requireNotNull(parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader))
+            val margin = parcel.readParcelable<Rect>(Rect::class.java.classLoader)!!
+            val bitmap = parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader)!!
             val chunk = requireNotNull(parcel.createByteArray())
             return ShadowDrawable(margin, bitmap, chunk)
         }
