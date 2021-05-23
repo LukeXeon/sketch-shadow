@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.util.Base64
 import android.util.Log
+import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -21,7 +22,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 @SuppressLint("SetJavaScriptEnabled")
-internal class FactoryWebView(context: Context) : AppCompatJsWebView(context.applicationContext),
+internal class ShadowFactoryImpl(context: Context) : AppCompatJsWebView(context.applicationContext),
     ShadowFactory {
 
     private val pendingTasks = ArrayList<Pair<ShadowOptions, Continuation<ShadowDrawable>>>()
@@ -31,28 +32,20 @@ internal class FactoryWebView(context: Context) : AppCompatJsWebView(context.app
         settings.javaScriptEnabled = true
         webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                onLoadFinished()
+                if (!isLoadFinished) {
+                    isLoadFinished = true
+                    for ((input, continuation) in pendingTasks) {
+                        GlobalScope.launch(Dispatchers.Main) {
+                            continuation.resume(runTask(input))
+                        }
+                    }
+                    pendingTasks.clear()
+                }
             }
         }
         webChromeClient = WebChromeClient()
         setBackgroundColor(Color.TRANSPARENT)
         loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
-    }
-
-    override fun getTag(): Any {
-        return ShadowFactory
-    }
-
-    private fun onLoadFinished() {
-        if (!isLoadFinished) {
-            isLoadFinished = true
-            for ((input, continuation) in pendingTasks) {
-                GlobalScope.launch(Dispatchers.Main) {
-                    continuation.resume(runTask(input))
-                }
-            }
-            pendingTasks.clear()
-        }
     }
 
     private suspend fun runTask(input: ShadowOptions): ShadowDrawable {
@@ -93,6 +86,7 @@ internal class FactoryWebView(context: Context) : AppCompatJsWebView(context.app
     }
 
     override suspend fun newDrawable(options: ShadowOptions): ShadowDrawable {
+        rootView ?: throw UnsupportedOperationException("already close")
         val input = options.copy()
         return withContext(Dispatchers.Main) {
             if (isLoadFinished) {
@@ -101,6 +95,10 @@ internal class FactoryWebView(context: Context) : AppCompatJsWebView(context.app
                 suspendCoroutine { pendingTasks.add(input to it) }
             }
         }
+    }
+
+    override fun release() {
+        (parent as? ViewGroup)?.removeView(this)
     }
 
     companion object {
