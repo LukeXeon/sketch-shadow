@@ -20,7 +20,7 @@ class MainActivity : Activity() {
                 .newDrawable(ShadowOptions().apply {
                     shadowBlur = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
-                        12f,
+                        20f,
                         resources.displayMetrics
                     ).toInt()
                     setRoundRadius(TypedValue.applyDimension(

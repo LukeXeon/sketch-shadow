@@ -61,7 +61,7 @@ private constructor(context: Context) {
                     val decode = Base64.decode(url, Base64.DEFAULT)
                     val outer = BitmapFactory.decodeByteArray(decode, 0, decode.size)
                     val chunk = NinePatchChunk.findPatches(outer)
-                    val inner = Bitmap.createBitmap(outer, 1, 1, outer.width - 2, outer.width - 2)
+                    val inner = Bitmap.createBitmap(outer, 1, 1, outer.width - 2, outer.height - 2)
                     outer.recycle()
                     inner.prepareToDraw()
                     ShadowDrawable(
