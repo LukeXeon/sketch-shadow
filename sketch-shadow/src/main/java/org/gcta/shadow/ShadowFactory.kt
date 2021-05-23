@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.Process
 import android.util.Base64
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -191,6 +192,7 @@ class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) 
                 observers.add(LifecycleObserver(factory, queue, webkit, application))
                 webkit.settings.javaScriptEnabled = true
                 webkit.webViewClient = Trigger(factory)
+                webkit.visibility = View.GONE
                 webkit.setBackgroundColor(Color.TRANSPARENT)
                 webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
                 return@withContext factory
