@@ -17,7 +17,7 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         val view = findViewById<View>(R.id.root_bg)
         GlobalScope.launch(Dispatchers.Main) {
-            view.background = ShadowFactory.create(application)
+            view.background = ShadowFactory.create(this@MainActivity)
                 .newDrawable(ShadowOptions().apply {
                     shadowBlur = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,

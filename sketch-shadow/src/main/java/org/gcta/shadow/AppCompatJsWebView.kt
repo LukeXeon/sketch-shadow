@@ -16,8 +16,9 @@ import androidx.annotation.Keep as AndroidXKeep
 import proguard.annotation.Keep as ProguardKeep
 
 
+@Suppress("LeakingThis")
 @SuppressLint("AddJavascriptInterface", "SetJavaScriptEnabled")
-class AppCompatJsWebView @JvmOverloads constructor(
+open class AppCompatJsWebView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : WebView(context, attrs, defStyleAttr) {
 
