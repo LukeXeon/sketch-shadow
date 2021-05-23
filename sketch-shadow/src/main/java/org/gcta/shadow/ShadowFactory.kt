@@ -2,10 +2,12 @@ package org.gcta.shadow
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Rect
+import android.os.Bundle
 import android.os.Process
 import android.util.Base64
 import android.util.Log
@@ -30,11 +32,61 @@ import kotlin.coroutines.suspendCoroutine
  * */
 class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) {
 
-    private class Cleaner(
+    private class LifecycleObserver(
         referent: ShadowFactory,
         q: ReferenceQueue<ShadowFactory>,
-        val webkit: AppCompatJsWebView
-    ) : PhantomReference<ShadowFactory>(referent, q)
+        private val webkit: AppCompatJsWebView,
+        private val application: Application
+    ) : PhantomReference<ShadowFactory>(referent, q),
+        Application.ActivityLifecycleCallbacks {
+        private var isReleased = false
+
+        init {
+            application.registerActivityLifecycleCallbacks(this)
+        }
+
+        fun onRelease() {
+            if (!isReleased) {
+                isReleased = true
+                application.unregisterActivityLifecycleCallbacks(this)
+                (webkit.parent as? ViewGroup)?.removeView(webkit)
+                Log.d(TAG, "clear $webkit")
+            }
+        }
+
+        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+
+        }
+
+        override fun onActivityStarted(activity: Activity) {
+
+        }
+
+        override fun onActivityResumed(activity: Activity) {
+            val decorView = activity.window.decorView
+            if (!isReleased && decorView != webkit.rootView) {
+                (webkit.parent as? ViewGroup)?.removeView(webkit)
+                (decorView as ViewGroup).addView(webkit, 0, 0)
+            }
+        }
+
+        override fun onActivityPaused(activity: Activity) {
+
+        }
+
+        override fun onActivityStopped(activity: Activity) {
+
+        }
+
+        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
+
+        }
+
+        override fun onActivityDestroyed(activity: Activity) {
+
+        }
+
+    }
 
     /**
      * 触发[ShadowFactory.onLoadFinished]
@@ -114,18 +166,17 @@ class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) 
     companion object {
         private val gson by lazy { Gson() }
         private val queue = ReferenceQueue<ShadowFactory>()
-        private val cleaners = HashSet<Cleaner>()
+        private val observers = HashSet<LifecycleObserver>()
         private const val TAG = "ShadowFactory"
 
         init {
             thread(isDaemon = true, priority = Process.THREAD_PRIORITY_BACKGROUND) {
                 while (true) {
-                    val cleaner = queue.remove() as? Cleaner ?: continue
+                    val observer = queue.remove() as? LifecycleObserver ?: continue
                     GlobalScope.launch(Dispatchers.Main) {
-                        cleaners.remove(cleaner)
-                        val webkit = cleaner.webkit
-                        (webkit.parent as? ViewGroup)?.removeView(webkit)
-                        Log.d(TAG, "clear ${cleaner.webkit}")
+                        if (observers.remove(observer)) {
+                            observer.onRelease()
+                        }
                     }
                 }
             }
@@ -133,18 +184,18 @@ class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) 
 
         @SuppressLint("SetJavaScriptEnabled")
         suspend fun create(activity: Activity): ShadowFactory {
+            val application = activity.application
+            val rootView = activity.window.decorView
             return withContext(Dispatchers.Main) {
-                val webkit = AppCompatJsWebView(activity.application)
+                val webkit = AppCompatJsWebView(application)
                 // 为了兼容Google的傻逼bug↓
                 // https://github.com/jakub-g/webview-bug-onPageFinished-sometimes-not-called
                 // 所以必须将其放置到窗口中
-                (activity.window.decorView as ViewGroup).addView(webkit, 0, 0)
+                (rootView as ViewGroup).addView(webkit, 0, 0)
                 val factory = ShadowFactory(webkit)
-                val cleaner = Cleaner(factory, queue, webkit)
-                val trigger = Trigger(factory)
-                cleaners.add(cleaner)
+                observers.add(LifecycleObserver(factory, queue, webkit, application))
                 webkit.settings.javaScriptEnabled = true
-                webkit.webViewClient = trigger
+                webkit.webViewClient = Trigger(factory)
                 webkit.setBackgroundColor(Color.TRANSPARENT)
                 webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
                 return@withContext factory
