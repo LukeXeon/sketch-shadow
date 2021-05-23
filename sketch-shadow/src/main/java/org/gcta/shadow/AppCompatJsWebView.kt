@@ -50,8 +50,7 @@ class AppCompatJsWebView @JvmOverloads constructor(
 
         fun evaluateJavascript(script: String, callback: ValueCallback<String>?) {
             val view = webView.get() ?: return
-            val id: String = "evaluateJavascript_callback_" + UUID.randomUUID().toString()
-                .replace("-", "")
+            val id = UUID.randomUUID().toString()
             val manager = AppCompatEvaluateJavascriptDelegate::class.java.simpleName
             val internalScript = if (callback == null) {
                 script
