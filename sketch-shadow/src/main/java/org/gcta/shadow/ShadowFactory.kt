@@ -2,19 +2,19 @@ package org.gcta.shadow
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Rect
-import android.graphics.drawable.NinePatchDrawable
 import android.util.Base64
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.MainThread
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.lang.reflect.Modifier
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -25,7 +25,7 @@ class ShadowFactory
 private constructor(context: Context) {
 
     private inner class TaskManager : WebViewClient() {
-        private val pendingTasks = ArrayList<Pair<JSONObject, Continuation<ShadowDrawable>>>()
+        private val pendingTasks = ArrayList<Pair<ShadowOptions, Continuation<ShadowDrawable>>>()
         private var isLoadFinished: Boolean = false
 
         override fun onPageFinished(view: WebView?, url: String?) {
@@ -40,43 +40,44 @@ private constructor(context: Context) {
             }
         }
 
-        private suspend fun runTask(input: JSONObject): ShadowDrawable {
+        private suspend fun runTask(input: ShadowOptions): ShadowDrawable {
             val output = withContext(Dispatchers.Main) {
                 suspendCoroutine<String> { continuation ->
-                    webkit.evaluateJavascriptCompat("createNinePatch('$input');") {
+                    webkit.evaluateJavascriptCompat("createNinePatch('${gson.toJson(input)}');") {
                         continuation.resume(it)
                     }
                 }
             }
             return withContext(Dispatchers.Default) {
-                val json = JSONObject(output)
-                if (json.has("error")) {
-                    throw UnsupportedOperationException(
-                        json.getString(
-                            "error"
-                        )
-                    )
+                Log.d(TAG, "output=$output")
+                val json = gson.fromJson(output, ShadowOutput::class.java)
+                if (!json.error.isNullOrEmpty()) {
+                    throw UnsupportedOperationException(json.error)
                 } else {
-                    val margin = json.getJSONArray("margin")
-                    val imageData = json.getString("imageData")
-                    val imageBuffer = Base64.decode(imageData, Base64.DEFAULT)
-                    val bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.size)
-                    val chunk = NinePatchChunk.findPatches(bitmap)
+                    val margin = json.margin!!.map { it.toInt() }
+                    val imageData = json.imageData!!
+                    val url = imageData.split(",")[1]
+                    val decode = Base64.decode(url, Base64.DEFAULT)
+                    val outer = BitmapFactory.decodeByteArray(decode, 0, decode.size)
+                    val chunk = NinePatchChunk.findPatches(outer)
+                    val inner = Bitmap.createBitmap(outer, 1, 1, outer.width - 2, outer.width - 2)
+                    outer.recycle()
+                    inner.prepareToDraw()
                     ShadowDrawable(
                         Rect(
-                            margin.getInt(0),
-                            margin.getInt(1),
-                            margin.getInt(2),
-                            margin.getInt(3)
+                            margin[0],
+                            margin[1],
+                            margin[2],
+                            margin[3]
                         ),
-                        bitmap,
+                        inner,
                         chunk
                     )
                 }
             }
         }
 
-        suspend fun scheduleTask(input: JSONObject): ShadowDrawable {
+        suspend fun scheduleTask(input: ShadowOptions): ShadowDrawable {
             return withContext(Dispatchers.Main) {
                 if (isLoadFinished) {
                     runTask(input)
@@ -102,19 +103,17 @@ private constructor(context: Context) {
                 ShadowFactory(context)
             }
         }
+
+        private val gson by lazy {
+            Gson()
+        }
+
+        private const val TAG = "ShadowFactory"
     }
 
     suspend fun newDrawable(
         options: ShadowOptions
     ): ShadowDrawable {
-        val input = JSONObject(
-            ShadowOptions::class.java.declaredFields
-                .filter {
-                    !Modifier.isStatic(it.modifiers)
-                }
-                .map { it.name to it.apply { isAccessible = true }.get(options) }
-                .toMap()
-        )
-        return taskManager.scheduleTask(input)
+        return taskManager.scheduleTask(options.copy())
     }
 }

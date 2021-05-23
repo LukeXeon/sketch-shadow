@@ -53,7 +53,7 @@ internal object NinePatchChunk {
         } else {
             require(pixels1.size >= w * h) { "Pixels array must have a length >= w * h" }
         }
-        img.getPixels(pixels1, 0, 0, x, y, w, h)
+        img.getPixels(pixels1, 0, w, x, y, w, h)
         return pixels1
     }
 
@@ -84,15 +84,19 @@ internal object NinePatchChunk {
             horizontalPatches = getRectangles(left.first, top.second)
             verticalPatches = getRectangles(left.second, top.first)
         } else {
-            if (top.first.isNotEmpty()) {
-                horizontalPatches = ArrayList(0)
-                verticalPatches = getVerticalRectangles(height, top.first)
-            } else if (left.first.isNotEmpty()) {
-                horizontalPatches = getHorizontalRectangles(width, left.first)
-                verticalPatches = ArrayList(0)
-            } else {
-                verticalPatches = ArrayList(0)
-                horizontalPatches = verticalPatches
+            when {
+                top.first.isNotEmpty() -> {
+                    horizontalPatches = ArrayList(0)
+                    verticalPatches = getVerticalRectangles(height, top.first)
+                }
+                left.first.isNotEmpty() -> {
+                    horizontalPatches = getHorizontalRectangles(width, left.first)
+                    verticalPatches = ArrayList(0)
+                }
+                else -> {
+                    verticalPatches = ArrayList(0)
+                    horizontalPatches = verticalPatches
+                }
             }
         }
 

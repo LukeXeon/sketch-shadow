@@ -394,6 +394,9 @@ function createNinePatch(args) {
         paddingLeft = parseFloatAndClamp(input['paddingLeft'], 0, CANVAS_MAX_WIDTH, 0);
         paddingRight = parseFloatAndClamp(input['paddingRight'], 0, CANVAS_MAX_WIDTH, 0);
 
+        objectHeight = Math.max(roundRadius.upperLeft, roundRadius.upperRight) + Math.max(roundRadius.lowerLeft, roundRadius.lowerRight) + 1;
+        objectWidth = Math.max(roundRadius.lowerLeft, roundRadius.upperLeft) + Math.max(roundRadius.upperRight, roundRadius.lowerRight) + 1;
+
         drawShadow(objectWidth, objectHeight, roundRadius, fast);
     }
 
@@ -408,10 +411,10 @@ function createNinePatch(args) {
 
     redraw();
 
-    return JSON.stringify({
+    return {
         margin,
         imageData: exportAsDataURL()
-    });
+    };
 }
 
 global.createNinePatch = createNinePatch;

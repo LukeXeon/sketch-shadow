@@ -40,6 +40,20 @@ data class ShadowOptions(
     @Px
     var paddingBottom: Int = UNSET_PADDING
 ) : Cloneable {
+    fun setRoundRadius(value: Int) {
+        roundLeftBottom = value
+        roundLeftTop = value
+        roundRightTop = value
+        roundRightBottom = value
+    }
+
+    fun setPadding(value: Int) {
+        paddingBottom = value
+        paddingTop = value
+        paddingLeft = value
+        paddingRight = value
+    }
+
     companion object {
         const val UNSET_PADDING = -1
     }
