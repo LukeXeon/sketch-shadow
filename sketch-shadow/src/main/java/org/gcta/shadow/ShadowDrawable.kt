@@ -104,7 +104,7 @@ class ShadowDrawable internal constructor(
         override fun createFromParcel(parcel: Parcel): ShadowDrawable {
             val margin = parcel.readParcelable<Rect>(Rect::class.java.classLoader)!!
             val bitmap = parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader)!!
-            val chunk = requireNotNull(parcel.createByteArray())
+            val chunk = parcel.createByteArray()!!
             return ShadowDrawable(margin, bitmap, chunk)
         }
 

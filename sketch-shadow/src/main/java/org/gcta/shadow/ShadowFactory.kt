@@ -10,7 +10,6 @@ import android.os.Process
 import android.util.Base64
 import android.util.Log
 import android.view.ViewGroup
-import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.google.gson.Gson
@@ -146,7 +145,6 @@ class ShadowFactory private constructor(private val webkit: AppCompatJsWebView) 
                 cleaners.add(cleaner)
                 webkit.settings.javaScriptEnabled = true
                 webkit.webViewClient = trigger
-                webkit.webChromeClient = WebChromeClient()
                 webkit.setBackgroundColor(Color.TRANSPARENT)
                 webkit.loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
                 return@withContext factory
