@@ -36,7 +36,6 @@ class ShadowDrawable internal constructor(
                     parent.clipToPaddingCompat = false
                     parent.clipToOutlineCompat = false
                     invalidateSelf()
-                    return
                 }
             }
         }
