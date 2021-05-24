@@ -87,7 +87,9 @@ internal class WebkitRenderer(
         }
 
         override fun onViewAttachedToWindow(v: View?) {
-
+            rootView.visibility = View.GONE
+            rootView.alpha = 0f
+            rootView.setBackgroundColor(Color.TRANSPARENT)
         }
 
         override fun onViewDetachedFromWindow(v: View?) {
