@@ -57,7 +57,6 @@ internal class WebkitRenderer(
         return gson.fromJson(output, ShadowOutput::class.java)
     }
 
-
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         setMeasuredDimension(0, 0)
     }
@@ -97,7 +96,7 @@ internal class WebkitRenderer(
             // https://github.com/jakub-g/webview-bug-onPageFinished-sometimes-not-called
             // 所以必须将其放置到窗口中
             val toast = Toast(v.context)
-            toast.duration = Toast.LENGTH_LONG
+            toast.duration = Toast.LENGTH_SHORT
             toast.view = v
             toast.show()
         }
