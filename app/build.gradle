@@ -34,7 +34,10 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
+    // https://mvnrepository.com/artifact/androidx.multidex/multidex
+    implementation group: 'androidx.multidex', name: 'multidex', version: '2.0.1'
     implementation project(':sketch-shadow')
+    implementation 'com.google.android.material:material:1.2.1'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.3'
     testImplementation 'junit:junit:4.+'

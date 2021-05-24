@@ -1,6 +1,8 @@
 package com.example.myapplication
 
 import android.app.Activity
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
@@ -8,6 +10,7 @@ import android.util.TypedValue
 import android.view.View
 import android.widget.Space
 import android.widget.Toast
+import com.google.android.material.shape.MaterialShapeDrawable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -42,6 +45,23 @@ class MainActivity : Activity() {
                 "渲染完成" + (SystemClock.uptimeMillis() - last),
                 Toast.LENGTH_LONG
             ).show()
+        }
+        val view2 = findViewById<View>(R.id.root_bg2)
+        view2.background = MaterialShapeDrawable().apply {
+            elevation = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                20f,
+                resources.displayMetrics
+            )
+            shadowCompatibilityMode = MaterialShapeDrawable.SHADOW_COMPAT_MODE_ALWAYS
+            setCornerSize(
+                TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP,
+                    20f,
+                    resources.displayMetrics
+                )
+            )
+            fillColor = ColorStateList.valueOf(Color.WHITE)
         }
     }
 }
