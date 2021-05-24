@@ -32,7 +32,7 @@ internal class WebkitRenderer(
         webViewClient = loadMonitor
         tag = loadMonitor
         addOnAttachStateChangeListener(loadMonitor)
-        attachToWindowForFixBug()
+        loadMonitor.attachToWindowForFixBug(this)
     }
 
     private suspend fun ensureLoaded() {
@@ -57,21 +57,12 @@ internal class WebkitRenderer(
         return gson.fromJson(output, ShadowOutput::class.java)
     }
 
-    private fun attachToWindowForFixBug() {
-        // 为了兼容Google的傻逼bug↓
-        // https://github.com/jakub-g/webview-bug-onPageFinished-sometimes-not-called
-        // 所以必须将其放置到窗口中
-        val toast = Toast(context.applicationContext)
-        toast.duration = Toast.LENGTH_LONG
-        toast.view = this
-        toast.show()
-    }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         setMeasuredDimension(0, 0)
     }
 
-    private inner class LoadMonitor : WebViewClient(), OnAttachStateChangeListener {
+    private class LoadMonitor : WebViewClient(), OnAttachStateChangeListener {
 
         private val waitList = ArrayList<Continuation<Unit>>()
 
@@ -80,23 +71,35 @@ internal class WebkitRenderer(
         }
 
         override fun onPageFinished(view: WebView, url: String?) {
-            webViewClient = WebViewClient()
-            tag = null
-            removeOnAttachStateChangeListener(this)
+            view.webViewClient = WebViewClient()
+            view.tag = null
+            view.removeOnAttachStateChangeListener(this)
             waitList.forEach { it.resume(Unit) }
         }
 
-        override fun onViewAttachedToWindow(v: View?) {
-            rootView.visibility = View.GONE
-            rootView.alpha = 0f
-            rootView.setBackgroundColor(Color.TRANSPARENT)
+        override fun onViewAttachedToWindow(v: View) {
+            v.rootView.apply {
+                visibility = View.GONE
+                alpha = 0f
+                setBackgroundColor(Color.TRANSPARENT)
+            }
         }
 
-        override fun onViewDetachedFromWindow(v: View?) {
-            val monitor = tag
+        override fun onViewDetachedFromWindow(v: View) {
+            val monitor = v.tag
             if (monitor is LoadMonitor) {
-                attachToWindowForFixBug()
+                attachToWindowForFixBug(v)
             }
+        }
+
+        fun attachToWindowForFixBug(v: View) {
+            // 为了兼容Google的傻逼bug↓
+            // https://github.com/jakub-g/webview-bug-onPageFinished-sometimes-not-called
+            // 所以必须将其放置到窗口中
+            val toast = Toast(v.context)
+            toast.duration = Toast.LENGTH_LONG
+            toast.view = v
+            toast.show()
         }
     }
 
