@@ -32,7 +32,7 @@ internal class WebkitRenderer(
         webViewClient = loadMonitor
         tag = loadMonitor
         addOnAttachStateChangeListener(loadMonitor)
-        reattach()
+        attachToWindowForFixBug()
     }
 
     private suspend fun ensureLoaded() {
@@ -57,7 +57,7 @@ internal class WebkitRenderer(
         return gson.fromJson(output, ShadowOutput::class.java)
     }
 
-    private fun reattach() {
+    private fun attachToWindowForFixBug() {
         // 为了兼容Google的傻逼bug↓
         // https://github.com/jakub-g/webview-bug-onPageFinished-sometimes-not-called
         // 所以必须将其放置到窗口中
@@ -95,7 +95,7 @@ internal class WebkitRenderer(
         override fun onViewDetachedFromWindow(v: View?) {
             val monitor = tag
             if (monitor is LoadMonitor) {
-                reattach()
+                attachToWindowForFixBug()
             }
         }
     }
