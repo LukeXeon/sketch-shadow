@@ -2,14 +2,17 @@ package com.example.myapplication
 
 import android.app.Activity
 import android.os.Bundle
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
+import android.widget.Space
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.gcta.shadow.ShadowFactory
 import org.gcta.shadow.ShadowOptions
+import java.lang.Exception
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,5 +37,27 @@ class MainActivity : Activity() {
                 })
             Toast.makeText(application, "渲染完成", Toast.LENGTH_LONG).show()
         }
+        createTest()
+    }
+
+    fun createTest() {
+        val toast = Toast(application)
+        toast.view = Space(application).apply {
+            addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) {
+
+                }
+
+                override fun onViewDetachedFromWindow(v: View) {
+                    toast.view = v
+                    toast.duration = Toast.LENGTH_LONG
+                    toast.show()
+                    Exception().printStackTrace()
+                    Log.d("TEST", "onViewDetachedFromWindow")
+                }
+            })
+        }
+        toast.duration = Toast.LENGTH_LONG
+        toast.show()
     }
 }
