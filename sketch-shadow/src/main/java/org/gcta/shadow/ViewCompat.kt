@@ -2,6 +2,7 @@
 
 package org.gcta.shadow
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +13,8 @@ private val FLAG_CLIP_TO_PADDING by lazy {
             isAccessible = true
         }.getInt(null)
 }
+    @SuppressLint("SoonBlockedPrivateApi")
+    get
 
 private val FLAG_CLIP_CHILDREN by lazy {
     ViewGroup::class.java.getDeclaredField("FLAG_CLIP_CHILDREN")
@@ -19,6 +22,8 @@ private val FLAG_CLIP_CHILDREN by lazy {
             isAccessible = true
         }.getInt(null)
 }
+    @SuppressLint("SoonBlockedPrivateApi")
+    get
 
 private val mGroupFlagsField by lazy {
     ViewGroup::class.java.getDeclaredField("mGroupFlags")
@@ -26,6 +31,8 @@ private val mGroupFlagsField by lazy {
             isAccessible = true
         }
 }
+    @SuppressLint("SoonBlockedPrivateApi")
+    get
 
 private val ViewGroup.mGroupFlags: Int
     get() {
