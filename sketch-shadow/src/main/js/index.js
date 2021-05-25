@@ -380,7 +380,7 @@ function createNinePatch(args) {
         backgroundFillColor = toColorText(input['backgroundFillColor']);
         outlineColor = toColorText(input['outlineColor']);
 
-        isTransparentFill = (fillColor instanceof String || typeof fillColor === 'string') && input['fillColor'] !== 0;
+        isTransparentFill = !(((input['fillColor'] || 0) >> 24 & 0xff) !== 0);
 
         roundRadius = {
             upperLeft: parseFloatAndClamp(input['roundLeftTop'], minRadius, maxRadius),
