@@ -27,6 +27,7 @@ class MainActivity : Activity() {
             val last = SystemClock.uptimeMillis()
             view.background = ShadowFactory.create(this@MainActivity)
                 .newDrawable(ShadowOptions().apply {
+                    fillColor = Color.WHITE
                     shadowBlur = TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         20f,
