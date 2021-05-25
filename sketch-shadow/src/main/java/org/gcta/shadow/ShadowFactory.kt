@@ -7,7 +7,6 @@ import android.graphics.Rect
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.gcta.shadow.*
 
 class ShadowFactory private constructor(private val webkit: WebkitRenderer) {
 

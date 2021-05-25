@@ -36,17 +36,15 @@ internal class WebkitRenderer(
     }
 
     private suspend fun ensureLoaded() {
-        withContext(Dispatchers.Main) {
-            val monitor = tag
-            if (monitor is LoadMonitor) {
-                monitor.waitLoaded()
-            }
+        val monitor = tag
+        if (monitor is LoadMonitor) {
+            monitor.waitLoaded()
         }
     }
 
     suspend fun render(input: ShadowOptions): ShadowOutput {
-        ensureLoaded()
         val output = withContext(Dispatchers.Main) {
+            ensureLoaded()
             suspendCoroutine<String> { continuation ->
                 evaluateJavascript("createNinePatch('${gson.toJson(input)}')") {
                     continuation.resume(it)
