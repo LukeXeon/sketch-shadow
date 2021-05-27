@@ -29,23 +29,23 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         val view = findViewById<View>(R.id.root_bg)
         GlobalScope.launch(Dispatchers.Main) {
+            val factory = ShadowFactory.create(this@MainActivity)
             val last = SystemClock.uptimeMillis()
-            view.background = ShadowFactory.create(this@MainActivity)
-                .newDrawable(ShadowOptions().apply {
-                    fillColor = Color.WHITE
-                    shadowBlur = TypedValue.applyDimension(
+            view.background = factory.newDrawable(ShadowOptions().apply {
+                fillColor = Color.WHITE
+                shadowBlur = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP,
+                    20f,
+                    resources.displayMetrics
+                ).toInt()
+                setRoundRadius(
+                    TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         20f,
                         resources.displayMetrics
                     ).toInt()
-                    setRoundRadius(
-                        TypedValue.applyDimension(
-                            TypedValue.COMPLEX_UNIT_DIP,
-                            20f,
-                            resources.displayMetrics
-                        ).toInt()
-                    )
-                })
+                )
+            })
             Toast.makeText(
                 application,
                 "渲染完成" + (SystemClock.uptimeMillis() - last),
