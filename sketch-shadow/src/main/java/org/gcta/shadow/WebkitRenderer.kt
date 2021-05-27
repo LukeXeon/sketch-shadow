@@ -21,24 +21,24 @@ internal class WebkitRenderer(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : AppCompatJsWebView(context, attrs, defStyleAttr) {
+) : AppCompatJsWebView(context.applicationContext, attrs, defStyleAttr) {
 
     init {
         layoutParams = LayoutParams(0, 0)
         visibility = View.GONE
         setBackgroundColor(Color.TRANSPARENT)
         loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
-        val loadMonitor = LoadMonitor()
-        webViewClient = loadMonitor
-        tag = loadMonitor
-        addOnAttachStateChangeListener(loadMonitor)
-        loadMonitor.attachToWindowForFixBug(this)
+        val compat = CompatCallbacks()
+        webViewClient = compat
+        tag = compat
+        addOnAttachStateChangeListener(compat)
+        compat.attachToWindow(this)
     }
 
     private suspend fun ensureLoaded() {
-        val monitor = tag
-        if (monitor is LoadMonitor) {
-            monitor.waitLoaded()
+        val compat = tag
+        if (compat is CompatCallbacks) {
+            compat.waitLoaded()
         }
     }
 
@@ -59,7 +59,7 @@ internal class WebkitRenderer(
         setMeasuredDimension(0, 0)
     }
 
-    private class LoadMonitor : WebViewClient(), OnAttachStateChangeListener {
+    private class CompatCallbacks : WebViewClient(), OnAttachStateChangeListener {
 
         private val waitList = ArrayList<Continuation<Unit>>()
 
@@ -83,13 +83,13 @@ internal class WebkitRenderer(
         }
 
         override fun onViewDetachedFromWindow(v: View) {
-            val monitor = v.tag
-            if (monitor is LoadMonitor) {
-                attachToWindowForFixBug(v)
+            val compat = v.tag
+            if (compat is CompatCallbacks) {
+                attachToWindow(v)
             }
         }
 
-        fun attachToWindowForFixBug(v: View) {
+        fun attachToWindow(v: View) {
             // 为了兼容Google的傻逼bug↓
             // https://github.com/jakub-g/webview-bug-onPageFinished-sometimes-not-called
             // 所以必须将其放置到窗口中
