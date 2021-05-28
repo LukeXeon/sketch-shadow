@@ -1,5 +1,6 @@
 package org.gcta.shadow
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.util.AttributeSet
@@ -17,13 +18,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 
+@SuppressLint("SetJavaScriptEnabled")
 internal class WebkitRenderer(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : AppCompatJsWebView(context.applicationContext, attrs, defStyleAttr) {
+) : AppCompatWebView(context.applicationContext, attrs, defStyleAttr) {
 
     init {
+        settings.javaScriptEnabled = true
         layoutParams = LayoutParams(0, 0)
         visibility = View.GONE
         setBackgroundColor(Color.TRANSPARENT)
@@ -45,12 +48,12 @@ internal class WebkitRenderer(
     suspend fun render(input: ShadowOptions): ShadowOutput {
         val output = withContext(Dispatchers.Main) {
             ensureLoaded()
-            suspendCoroutine<String> { continuation ->
+            suspendCoroutine<String?> { continuation ->
                 evaluateJavascript("createNinePatch('${gson.toJson(input)}')") {
                     continuation.resume(it)
                 }
             }
-        }
+        } ?: throw UnsupportedOperationException()
         Log.d(TAG, "output=$output")
         return gson.fromJson(output, ShadowOutput::class.java)
     }
