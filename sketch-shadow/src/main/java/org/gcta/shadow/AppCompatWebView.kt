@@ -88,11 +88,12 @@ open class AppCompatWebView @JvmOverloads constructor(
                 val callback = callbacks.remove(obj.get("id").asString)
                 if (callback != null) {
                     val dataElement = obj.get("data")
-                    if (dataElement == null || dataElement == JsonNull.INSTANCE) {
-                        callback.onReceiveValue(null)
-                    } else {
-                        callback.onReceiveValue(obj.get("data").asString)
-                    }
+                    callback.onReceiveValue(
+                        if (dataElement == null || dataElement == JsonNull.INSTANCE)
+                            null
+                        else
+                            dataElement.asString
+                    )
                 }
                 result.confirm()
                 return true
@@ -250,5 +251,5 @@ open class AppCompatWebView @JvmOverloads constructor(
             private val gson by lazy { Gson() }
         }
     }
-    
+
 }
