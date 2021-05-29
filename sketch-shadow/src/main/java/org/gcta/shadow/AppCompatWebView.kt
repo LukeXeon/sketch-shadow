@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Message
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.webkit.*
 import com.google.gson.Gson
@@ -45,7 +46,7 @@ open class AppCompatWebView @JvmOverloads constructor(
     private class AppCompatDelegate : WebChromeClient() {
         var client: WebChromeClient? = null
         private val callbacks = HashMap<String, ValueCallback<String?>>()
-        private val prefix = "AppCompatJsResponse@${hashCode()}="
+        private val prefix = toString() + ",Receive response="
 
         fun evaluateJavascript(
             webView: WebView,
@@ -53,16 +54,15 @@ open class AppCompatWebView @JvmOverloads constructor(
             callback: ValueCallback<String?>?
         ) {
             val id = UUID.randomUUID().toString()
-            var internalScript = "(function(){$script})();"
-            internalScript = if (callback == null) {
-                internalScript
+            val internalScript = if (callback == null) {
+                script
             } else {
                 callbacks[id] = callback
                 """(function () {
                         var ex = null;
                         var result = null;
                         try {
-                            result = $internalScript
+                            result = $script
                         } catch (e) {
                             ex = e;
                         }
@@ -82,6 +82,7 @@ open class AppCompatWebView @JvmOverloads constructor(
             defaultValue: String?,
             result: JsPromptResult
         ): Boolean {
+            Log.d(TAG, message.toString())
             if (!message.isNullOrEmpty() && message.startsWith(prefix)) {
                 val string = message.substring(prefix.length)
                 val obj = gson.fromJson(string, JsonObject::class.java)
@@ -92,7 +93,7 @@ open class AppCompatWebView @JvmOverloads constructor(
                         if (dataElement == null || dataElement == JsonNull.INSTANCE)
                             null
                         else
-                            dataElement.asString
+                            dataElement.toString()
                     )
                 }
                 result.confirm()
@@ -248,6 +249,7 @@ open class AppCompatWebView @JvmOverloads constructor(
         }
 
         companion object {
+            private const val TAG = "AppCompatWebView"
             private val gson by lazy { Gson() }
         }
     }
