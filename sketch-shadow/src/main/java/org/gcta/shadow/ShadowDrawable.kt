@@ -7,20 +7,40 @@ import android.graphics.drawable.NinePatchDrawable
 import android.os.Build
 import android.os.Parcel
 import android.os.Parcelable
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.RestrictTo
+import java.io.*
+import java.util.*
+import kotlin.properties.Delegates
 
-class ShadowDrawable internal constructor(
-    private val margin: Rect,
-    private val bitmap: Bitmap,
-    private val chunk: ByteArray
-) : Drawable(), Drawable.Callback, Parcelable {
+class ShadowDrawable
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP) constructor() : Drawable(),
+    Drawable.Callback,
+    Parcelable,
+    Externalizable {
 
+    private var margin: Rect by Delegates.notNull()
+    private var bitmap: Bitmap by Delegates.notNull()
+    private var chunk: ByteArray by Delegates.notNull()
     private val ninePatchDrawable by lazy {
         NinePatchDrawable(Resources.getSystem(), bitmap, chunk, null, null).apply {
             isFilterBitmap = true
             paint.isAntiAlias = true
+            callback = this@ShadowDrawable
         }
+    }
+
+    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+    internal constructor(
+        margin: Rect,
+        bitmap: Bitmap,
+        chunk: ByteArray
+    ) : this() {
+        this.margin = margin
+        this.bitmap = bitmap
+        this.chunk = chunk
     }
 
     override fun draw(canvas: Canvas) {
@@ -103,7 +123,55 @@ class ShadowDrawable internal constructor(
         return 0
     }
 
+    override fun writeExternal(out: ObjectOutput) {
+        out.writeInt(margin.left)
+        out.writeInt(margin.top)
+        out.writeInt(margin.right)
+        out.writeInt(margin.bottom)
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        val array = stream.toByteArray()
+        out.writeInt(array.size)
+        out.write(array)
+        out.writeInt(chunk.size)
+        out.write(chunk)
+    }
+
+    override fun readExternal(`in`: ObjectInput) {
+        margin = Rect(
+            `in`.readInt(),
+            `in`.readInt(),
+            `in`.readInt(),
+            `in`.readInt()
+        )
+        var size = `in`.readInt()
+        var array = ByteArray(size)
+        `in`.readSafely(array)
+        bitmap = BitmapFactory.decodeByteArray(array, 0, array.size)
+        size = `in`.readInt()
+        array = ByteArray(size)
+        `in`.readSafely(array)
+        chunk = array
+    }
+
     companion object CREATOR : Parcelable.Creator<ShadowDrawable> {
+
+        private const val serialVersionUID = 1L
+
+        private fun ObjectInput.readSafely(buffer: ByteArray): Int {
+            val length = buffer.size
+            var count = 0
+            while (count != length) {
+                val r = read(buffer, count, length - count)
+                if (r == -1) {
+                    return count
+                } else {
+                    count += r
+                }
+            }
+            return length
+        }
+
         override fun createFromParcel(parcel: Parcel): ShadowDrawable {
             val margin = parcel.readParcelable<Rect>(Rect::class.java.classLoader)!!
             val bitmap = parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader)!!
