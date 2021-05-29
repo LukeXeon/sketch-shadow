@@ -7,7 +7,6 @@ import android.graphics.drawable.NinePatchDrawable
 import android.os.Build
 import android.os.Parcel
 import android.os.Parcelable
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.RestrictTo
@@ -16,7 +15,8 @@ import java.util.*
 import kotlin.properties.Delegates
 
 class ShadowDrawable
-@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP) constructor() : Drawable(),
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+constructor() : Drawable(),
     Drawable.Callback,
     Parcelable,
     Externalizable {
