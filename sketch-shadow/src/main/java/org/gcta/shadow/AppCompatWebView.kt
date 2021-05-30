@@ -99,7 +99,8 @@ open class AppCompatWebView @JvmOverloads constructor(
                 result.confirm()
                 return true
             } else {
-                return super.onJsPrompt(view, url, message, defaultValue, result)
+                return client?.onJsPrompt(view, url, message, defaultValue, result)
+                    ?: super.onJsPrompt(view, url, message, defaultValue, result)
             }
         }
 
