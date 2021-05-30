@@ -81,6 +81,7 @@ class MainActivity : Activity() {
                     resources.displayMetrics
                 )
             )
+            setShadowColor(Color.parseColor("#757575"))
             fillColor = ColorStateList.valueOf(Color.WHITE)
         }
         val view3 = findViewById<View>(R.id.root_bg3)
@@ -98,6 +99,19 @@ class MainActivity : Activity() {
                     )
                 }
             }
+        }
+        val view4 = findViewById<View>(R.id.root_bg4)
+        view4.background = PaintShadowDrawable().apply {
+            radius = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                20f,
+                resources.displayMetrics
+            )
+            shadow = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                20f,
+                resources.displayMetrics
+            )
         }
     }
 }
