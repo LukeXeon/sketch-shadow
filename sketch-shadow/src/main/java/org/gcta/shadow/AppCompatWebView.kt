@@ -46,7 +46,7 @@ open class AppCompatWebView @JvmOverloads constructor(
     private class AppCompatDelegate : WebChromeClient() {
         var client: WebChromeClient? = null
         private val callbacks = HashMap<String, ValueCallback<String?>>()
-        private val prefix = toString() + ",Receive response="
+        private val prefix = toString() + ",receive response="
 
         fun evaluateJavascript(
             webView: WebView,
