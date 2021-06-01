@@ -2,11 +2,13 @@ package org.gcta.shadow
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.util.AttributeSet
+import android.graphics.Rect
+import android.util.Base64
 import android.util.Log
 import android.view.View
-import android.view.ViewGroup.LayoutParams
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -17,17 +19,13 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-
 @SuppressLint("SetJavaScriptEnabled")
-internal class WebkitRenderer(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : AppCompatWebView(context.applicationContext, attrs, defStyleAttr) {
+internal class WebkitRenderer private constructor(
+    context: Context
+) : AppCompatWebView(context.applicationContext), ShadowFactory {
 
     init {
         settings.javaScriptEnabled = true
-        layoutParams = LayoutParams(0, 0)
         visibility = View.GONE
         setBackgroundColor(Color.TRANSPARENT)
         loadUrl("file:///android_asset/webkit_shadow_renderer/index.html")
@@ -45,17 +43,42 @@ internal class WebkitRenderer(
         }
     }
 
-    suspend fun render(input: ShadowOptions): ShadowOutput {
-        val output = withContext(Dispatchers.Main) {
+    override suspend fun newDrawable(options: ShadowOptions): ShadowDrawable {
+        return withContext(Dispatchers.Default) {
             ensureLoaded()
-            suspendCoroutine<String?> { continuation ->
-                evaluateJavascript("createNinePatch('${gson.toJson(input)}')") {
-                    continuation.resume(it)
-                }
+            val outputJson = withContext(Dispatchers.Main) {
+                suspendCoroutine<String?> { continuation ->
+                    evaluateJavascript("createNinePatch('${gson.toJson(options)}')") {
+                        continuation.resume(it)
+                    }
+                } ?: throw UnsupportedOperationException()
             }
-        } ?: throw UnsupportedOperationException()
-        Log.d(TAG, "output=$output")
-        return gson.fromJson(output, ShadowOutput::class.java)
+            val output = gson.fromJson(outputJson, ShadowOutput::class.java)
+            Log.d(TAG, "output=$output")
+            if (!output.error.isNullOrEmpty()) {
+                throw UnsupportedOperationException(output.error)
+            } else {
+                val margin = output.margin!!.map { it.toInt() }
+                val imageData = output.imageData!!
+                val url = imageData.split(",")[1]
+                val decode = Base64.decode(url, Base64.DEFAULT)
+                val outer = BitmapFactory.decodeByteArray(decode, 0, decode.size)
+                val chunk = NinePatchChunk.findPatches(outer)
+                val inner = Bitmap.createBitmap(outer, 1, 1, outer.width - 2, outer.height - 2)
+                outer.recycle()
+                inner.prepareToDraw()
+                ShadowDrawable(
+                    Rect(
+                        margin[0],
+                        margin[1],
+                        margin[2],
+                        margin[3]
+                    ),
+                    inner,
+                    chunk
+                )
+            }
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -104,7 +127,14 @@ internal class WebkitRenderer(
     }
 
     companion object {
+
         private val gson by lazy { Gson() }
+
+        suspend fun create(context: Context): WebkitRenderer {
+            return withContext(Dispatchers.Main) {
+                WebkitRenderer(context)
+            }
+        }
 
         private const val TAG = "WebkitRenderer"
     }

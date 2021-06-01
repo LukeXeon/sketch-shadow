@@ -129,7 +129,11 @@ constructor() : Drawable(),
         out.writeInt(margin.right)
         out.writeInt(margin.bottom)
         val stream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, stream)
+        } else {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        }
         val array = stream.toByteArray()
         out.writeInt(array.size)
         out.write(array)
@@ -148,6 +152,7 @@ constructor() : Drawable(),
         var array = ByteArray(size)
         `in`.readSafely(array)
         bitmap = BitmapFactory.decodeByteArray(array, 0, array.size)
+        bitmap.prepareToDraw()
         size = `in`.readInt()
         array = ByteArray(size)
         `in`.readSafely(array)
@@ -175,6 +180,7 @@ constructor() : Drawable(),
         override fun createFromParcel(parcel: Parcel): ShadowDrawable {
             val margin = parcel.readParcelable<Rect>(Rect::class.java.classLoader)!!
             val bitmap = parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader)!!
+            bitmap.prepareToDraw()
             val chunk = parcel.createByteArray()!!
             return ShadowDrawable(margin, bitmap, chunk)
         }
