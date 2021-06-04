@@ -12,7 +12,6 @@ import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.Continuation
@@ -127,8 +126,6 @@ internal class WebkitRenderer private constructor(
     }
 
     companion object {
-
-        private val gson by lazy { Gson() }
 
         suspend fun create(context: Context): WebkitRenderer {
             return withContext(Dispatchers.Main) {

@@ -159,9 +159,9 @@ internal object NinePatchChunk {
 
     private fun getVerticalRectangles(
         imageHeight: Int,
-        topPairs: List<Pair<Int, Int>>
+        topPairs: List<IntPair>
     ): List<Rectangle> {
-        val rectangles: MutableList<Rectangle> = ArrayList()
+        val rectangles = ArrayList<Rectangle>()
         for (top in topPairs) {
             val x = top.first
             val width = top.second - top.first
@@ -172,9 +172,9 @@ internal object NinePatchChunk {
 
     private fun getHorizontalRectangles(
         imageWidth: Int,
-        leftPairs: List<Pair<Int, Int>>
+        leftPairs: List<IntPair>
     ): List<Rectangle> {
-        val rectangles: MutableList<Rectangle> = ArrayList()
+        val rectangles = ArrayList<Rectangle>()
         for (left in leftPairs) {
             val y = left.first
             val height = left.second - left.first
@@ -183,18 +183,18 @@ internal object NinePatchChunk {
         return rectangles
     }
 
-    private fun getPadding(pairs: List<Pair<Int, Int>>): Pair<Int, Int> {
+    private fun getPadding(pairs: List<IntPair>): IntPair {
         return if (pairs.isEmpty()) {
-            Pair(0, 0)
+            IntPair(0, 0)
         } else if (pairs.size == 1) {
             if (pairs[0].first == 0) {
-                Pair(pairs[0].second - pairs[0].first, 0)
+                IntPair(pairs[0].second - pairs[0].first, 0)
             } else {
-                Pair(0, pairs[0].second - pairs[0].first)
+                IntPair(0, pairs[0].second - pairs[0].first)
             }
         } else {
             val index = pairs.size - 1
-            Pair(
+            IntPair(
                 pairs[0].second - pairs[0].first,
                 pairs[index].second - pairs[index].first
             )
@@ -202,10 +202,10 @@ internal object NinePatchChunk {
     }
 
     private fun getRectangles(
-        leftPairs: List<Pair<Int, Int>>,
-        topPairs: List<Pair<Int, Int>>
+        leftPairs: List<IntPair>,
+        topPairs: List<IntPair>
     ): List<Rectangle> {
-        val rectangles: MutableList<Rectangle> = ArrayList()
+        val rectangles = ArrayList<Rectangle>()
         for (left in leftPairs) {
             val y = left.first
             val height = left.second - left.first
@@ -225,8 +225,8 @@ internal object NinePatchChunk {
      * This returns both the fixed areas, and the patches (stretchable) areas.
      *
      *
-     * The return value is a pair of list. The first list ([Pair.first]) is the list
-     * of fixed area. The second list ([Pair.second]) is the list of stretchable areas.
+     * The return value is a pair of list. The first list ([IntPair.first]) is the list
+     * of fixed area. The second list ([IntPair.second]) is the list of stretchable areas.
      *
      *
      * Each area is defined as a Pair of (start, end) coordinate in the given line.
@@ -241,20 +241,20 @@ internal object NinePatchChunk {
     private fun getPatches(
         pixels: IntArray,
         startWithPatch: BooleanArray
-    ): Pair<List<Pair<Int, Int>>, List<Pair<Int, Int>>> {
+    ): Pair<List<IntPair>> {
         var lastIndex = 0
         var lastPixel = pixels[0]
         var first = true
-        val fixed: MutableList<Pair<Int, Int>> = ArrayList()
-        val patches: MutableList<Pair<Int, Int>> = ArrayList()
+        val fixed = ArrayList<IntPair>()
+        val patches = ArrayList<IntPair>()
         for (i in pixels.indices) {
             val pixel = pixels[i]
             if (pixel != lastPixel) {
                 if (lastPixel == -0x1000000) {
                     if (first) startWithPatch[0] = true
-                    patches.add(Pair(lastIndex, i))
+                    patches.add(IntPair(lastIndex, i))
                 } else {
-                    fixed.add(Pair(lastIndex, i))
+                    fixed.add(IntPair(lastIndex, i))
                 }
                 first = false
                 lastIndex = i
@@ -263,12 +263,12 @@ internal object NinePatchChunk {
         }
         if (lastPixel == -0x1000000) {
             if (first) startWithPatch[0] = true
-            patches.add(Pair(lastIndex, pixels.size))
+            patches.add(IntPair(lastIndex, pixels.size))
         } else {
-            fixed.add(Pair(lastIndex, pixels.size))
+            fixed.add(IntPair(lastIndex, pixels.size))
         }
         if (patches.isEmpty()) {
-            patches.add(Pair(1, pixels.size))
+            patches.add(IntPair(1, pixels.size))
             startWithPatch[0] = true
             fixed.clear()
         }

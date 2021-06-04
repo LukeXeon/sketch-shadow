@@ -8,7 +8,6 @@ import android.util.AttributeSet
 import android.util.Log
 import android.view.View
 import android.webkit.*
-import com.google.gson.Gson
 import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import java.util.*
@@ -251,7 +250,6 @@ open class AppCompatWebView @JvmOverloads constructor(
 
         companion object {
             private const val TAG = "AppCompatWebView"
-            private val gson by lazy { Gson() }
         }
     }
 
