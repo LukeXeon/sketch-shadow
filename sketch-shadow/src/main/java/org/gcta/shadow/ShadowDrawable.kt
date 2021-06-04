@@ -163,20 +163,6 @@ constructor() : Drawable(),
 
         private const val serialVersionUID = 1L
 
-        private fun ObjectInput.readSafely(buffer: ByteArray): Int {
-            val length = buffer.size
-            var count = 0
-            while (count != length) {
-                val r = read(buffer, count, length - count)
-                if (r == -1) {
-                    return count
-                } else {
-                    count += r
-                }
-            }
-            return length
-        }
-
         override fun createFromParcel(parcel: Parcel): ShadowDrawable {
             val margin = parcel.readParcelable<Rect>(Rect::class.java.classLoader)!!
             val bitmap = parcel.readParcelable<Bitmap>(Bitmap::class.java.classLoader)!!

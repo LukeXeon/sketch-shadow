@@ -36,6 +36,7 @@ import java.util.*
  * This is meant to be used with the NinePatch_Delegate in Layoutlib API 5+.
  */
 internal object NinePatchChunk {
+
     private fun getPixels(
         img: Bitmap,
         x: Int,
