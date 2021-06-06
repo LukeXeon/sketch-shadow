@@ -43,11 +43,12 @@ internal class WebkitRenderer private constructor(
     }
 
     override suspend fun newDrawable(options: ShadowOptions): ShadowDrawable {
+        val input = options.copy()
         return withContext(Dispatchers.Default) {
             ensureLoaded()
             val outputJson = withContext(Dispatchers.Main) {
                 suspendCoroutine<String?> { continuation ->
-                    evaluateJavascript("createNinePatch('${gson.toJson(options)}')") {
+                    evaluateJavascript("createNinePatch('${gson.toJson(input)}')") {
                         continuation.resume(it)
                     }
                 } ?: throw UnsupportedOperationException()
@@ -61,9 +62,13 @@ internal class WebkitRenderer private constructor(
                 val imageData = output.imageData!!
                 val url = imageData.split(",")[1]
                 val decode = Base64.decode(url, Base64.DEFAULT)
-                val outer = BitmapFactory.decodeByteArray(decode, 0, decode.size)
+                val outer = BitmapFactory.decodeByteArray(
+                    decode,
+                    0,
+                    decode.size
+                )
                 val chunk = NinePatchChunk.findPatches(outer)
-                val inner = Bitmap.createBitmap(outer, 1, 1, outer.width - 2, outer.height - 2)
+                val inner = Bitmap.createBitmap(outer, 1, 1, outer.width - 2, outer.height - 2, null, true)
                 outer.recycle()
                 inner.prepareToDraw()
                 ShadowDrawable(

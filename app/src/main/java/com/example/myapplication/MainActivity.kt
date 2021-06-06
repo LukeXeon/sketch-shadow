@@ -1,18 +1,23 @@
 package com.example.myapplication
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ApplicationInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Rect
-import android.os.Build
-import android.os.Bundle
-import android.os.SystemClock
+import android.os.*
+import android.util.Log
 import android.util.TypedValue
+import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewOutlineProvider
+import android.webkit.WebView
 import android.widget.Toast
 import com.google.android.material.shape.MaterialShapeDrawable
+import dalvik.system.PathClassLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -21,8 +26,15 @@ import org.gcta.shadow.ShadowDrawable
 import org.gcta.shadow.ShadowFactory
 import org.gcta.shadow.ShadowOptions
 import java.io.*
+import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
+
+    companion object {
+
+        private const val TAG = "MainActivity"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -31,7 +43,7 @@ class MainActivity : Activity() {
             val factory = ShadowFactory.create(this@MainActivity)
             val last = SystemClock.uptimeMillis()
             val dat = File(cacheDir, "sk1.dat")
-            val background = if (dat.exists()) {
+            val background = if (false) {
                 withContext(Dispatchers.IO) {
                     val stream = ObjectInputStream(FileInputStream(dat))
                     stream.readObject() as ShadowDrawable
@@ -113,5 +125,27 @@ class MainActivity : Activity() {
                 resources.displayMetrics
             )
         }
+        val classPath = System.getProperty("java.class.path", ".")
+        val librarySearchPath = System.getProperty("java.library.path", "")
+//        val cl = object : PathClassLoader(
+//            classPath,
+//            librarySearchPath,
+//            Activity::class.java.classLoader
+//        ) {
+//            override fun loadClass(name: String?, resolve: Boolean): Class<*> {
+//                return if (name == WebView::class.java.name) {
+//                    findClass(name)
+//                } else {
+//                    super.loadClass(name, resolve)
+//                }
+//            }
+//        }
+//        Log.d(
+//            TAG,
+//            "WebView " + (cl.loadClass(WebView::class.java.name) == WebView::class.java).toString()
+//        )
+        Log.d(TAG, "W CL" + WebView::class.java.classLoader)
+        Log.d(TAG, Class.forName("android.webkit.WebViewFactory").classLoader.toString())
     }
+
 }
